@@ -16,6 +16,7 @@ package commands
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -27,7 +28,7 @@ func (b *Boom) Run() {
 	b.Req.Header.Add("cache-control", "no-cache")
 	b.init()
 	b.run()
-	b.rpt.finalize(b.results)
+	b.rpt.finalize()
 }
 
 func (b *Boom) init() {
@@ -64,6 +65,12 @@ func (b *Boom) worker(wg *sync.WaitGroup) {
 	}
 }
 
+func (b *Boom) collector() {
+	for res := range b.results {
+		b.rpt.update(res)
+	}
+}
+
 func (b *Boom) run() {
 	var wg sync.WaitGroup
 	// Start throttler if rate limit is specified.
@@ -71,20 +78,41 @@ func (b *Boom) run() {
 	if b.Qps > 0 {
 		throttle = time.Tick(time.Duration(1e6/b.Qps) * time.Microsecond)
 	}
+	var timeout <-chan time.Time
+	if b.Timeout > 0 {
+		timeout = time.After(time.Duration(b.Timeout) * time.Second)
+	}
+	finished := make(chan bool)
+	go func() {
+		b.collector()
+		finished <- true
+	}()
+	// Send N requests.
+	b.jobs = make(chan bool, b.C)
 	// Start C workers to consume.
 	for i := 0; i < b.C; i++ {
 		wg.Add(1)
 		go b.worker(&wg)
 	}
-	// Send N requests.
-	b.jobs = make(chan bool, b.C)
+requestLoop:
 	for i := 0; i < b.N; i++ {
-		if b.Qps > 0 {
-			<-throttle
+		select {
+		case <-timeout:
+			fmt.Println("Timed out, waiting current workers to finish.")
+			break requestLoop
+
+		default:
+			if b.Qps > 0 {
+				<-throttle
+			}
+			b.jobs <- true
 		}
-		b.jobs <- true
 	}
 	close(b.jobs)
+	// Wait until all workers are done.
 	wg.Wait()
 	b.bar.Finish()
+	close(b.results)
+	// Wait until all results are processed.
+	<-finished
 }

@@ -47,23 +47,18 @@ func newReport(size int) *report {
 	}
 }
 
-func (r *report) finalize(results chan *result) {
-	for {
-		select {
-		case res := <-results:
-			r.lats = append(r.lats, res.duration.Seconds())
-			r.avgTotal += res.duration.Seconds()
-			r.statusCodeDist[res.statusCode]++
-		default:
-			r.end = time.Now()
-			r.total = r.end.Sub(r.start)
-			r.rps = float64(len(r.lats)) / r.total.Seconds()
-			r.average = r.avgTotal / float64(len(r.lats))
+func (r *report) update(res *result) {
+	r.lats = append(r.lats, res.duration.Seconds())
+	r.avgTotal += res.duration.Seconds()
+	r.statusCodeDist[res.statusCode]++
+}
 
-			r.print()
-			return
-		}
-	}
+func (r *report) finalize() {
+	r.end = time.Now()
+	r.total = r.end.Sub(r.start)
+	r.rps = float64(len(r.lats)) / r.total.Seconds()
+	r.average = r.avgTotal / float64(len(r.lats))
+	r.print()
 }
 
 func (r *report) print() {
