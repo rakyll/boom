@@ -16,7 +16,6 @@ package commands
 
 import (
 	"crypto/tls"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -38,7 +37,7 @@ func (b *Boom) init() {
 		}
 		b.Client = &http.Client{Transport: tr}
 	}
-	b.results = make(chan *result, b.N)
+	b.results = make(chan *result, b.C)
 	b.bar = newPb(b.N)
 	b.rpt = newReport(b.N)
 }
@@ -65,12 +64,6 @@ func (b *Boom) worker(wg *sync.WaitGroup) {
 	}
 }
 
-func (b *Boom) collector() {
-	for res := range b.results {
-		b.rpt.update(res)
-	}
-}
-
 func (b *Boom) run() {
 	var wg sync.WaitGroup
 	// Start throttler if rate limit is specified.
@@ -83,8 +76,11 @@ func (b *Boom) run() {
 		timeout = time.After(time.Duration(b.Timeout) * time.Second)
 	}
 	finished := make(chan bool)
+	// Start collecting results.
 	go func() {
-		b.collector()
+		for res := range b.results {
+			b.rpt.update(res)
+		}
 		finished <- true
 	}()
 	// Send N requests.
@@ -98,7 +94,6 @@ requestLoop:
 	for i := 0; i < b.N; i++ {
 		select {
 		case <-timeout:
-			fmt.Println("Timed out, waiting current workers to finish.")
 			break requestLoop
 
 		default:
