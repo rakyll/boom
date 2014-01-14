@@ -27,7 +27,7 @@ func (b *Boom) Run() {
 	b.Req.Header.Add("cache-control", "no-cache")
 	b.init()
 	b.run()
-	b.rpt.finalize(b.results)
+	b.rpt.finalize()
 }
 
 func (b *Boom) init() {
@@ -37,7 +37,7 @@ func (b *Boom) init() {
 		}
 		b.Client = &http.Client{Transport: tr}
 	}
-	b.results = make(chan *result, b.N)
+	b.results = make(chan *result, b.C)
 	b.bar = newPb(b.N)
 	b.rpt = newReport(b.N)
 }
@@ -71,20 +71,43 @@ func (b *Boom) run() {
 	if b.Qps > 0 {
 		throttle = time.Tick(time.Duration(1e6/b.Qps) * time.Microsecond)
 	}
+	var timeout <-chan time.Time
+	if b.Timeout > 0 {
+		timeout = time.After(time.Duration(b.Timeout) * time.Second)
+	}
+	finished := make(chan bool)
+	// Start collecting results.
+	go func() {
+		for res := range b.results {
+			b.rpt.update(res)
+		}
+		finished <- true
+	}()
+	// Send N requests.
+	b.jobs = make(chan bool, b.C)
 	// Start C workers to consume.
 	for i := 0; i < b.C; i++ {
 		wg.Add(1)
 		go b.worker(&wg)
 	}
-	// Send N requests.
-	b.jobs = make(chan bool, b.C)
+requestLoop:
 	for i := 0; i < b.N; i++ {
-		if b.Qps > 0 {
-			<-throttle
+		select {
+		case <-timeout:
+			break requestLoop
+
+		default:
+			if b.Qps > 0 {
+				<-throttle
+			}
+			b.jobs <- true
 		}
-		b.jobs <- true
 	}
 	close(b.jobs)
+	// Wait until all workers are done.
 	wg.Wait()
 	b.bar.Finish()
+	close(b.results)
+	// Wait until all results are processed.
+	<-finished
 }
