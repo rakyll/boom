@@ -158,13 +158,14 @@ const (
 
 func (r *report) printFancyGraph() {
 	var maxLat float64
-	for i := 0; i < len(r.latsById); i++ {
+	sampleCnt := len(r.latsById)
+	for i := 0; i < sampleCnt; i++ {
 		if r.latsById[i] > maxLat {
 			maxLat = r.latsById[i]
 		}
 	}
 	yNorm := float64(rows) / maxLat
-	xNorm := float64(cols) / float64(len(r.latsById))
+	xNorm := float64(cols) / float64(sampleCnt)
 	var graph [rows + 1][cols + 1]int
 	for i := 0; i < len(r.latsById); i++ {
 		y := r.latsById[i] * yNorm
@@ -172,11 +173,19 @@ func (r *report) printFancyGraph() {
 		graph[int(y)][int(x)]++
 	}
 	fmt.Printf("\nLatency vs Time:\n")
+	maxSamples := float64(sampleCnt) / float64(cols)
+	tiny := int(maxSamples/5.0) + 1
+	medium := tiny + int(maxSamples/3.0)
 	for i := 0; i < rows; i++ {
 		fmt.Printf(" %5.2f |", maxLat-(float64(i)*maxLat/float64(rows)))
 		for j := 0; j < cols; j++ {
-			if graph[rows-i][j] == 0 {
+			val := graph[rows-i][j]
+			if val == 0 {
 				fmt.Printf(" ")
+			} else if val <= tiny {
+				fmt.Printf(".")
+			} else if val <= medium {
+				fmt.Printf("-")
 			} else {
 				fmt.Printf("x")
 			}
