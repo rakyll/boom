@@ -22,6 +22,7 @@ import (
 )
 
 type result struct {
+	id         int
 	err        error
 	statusCode int
 	duration   time.Duration

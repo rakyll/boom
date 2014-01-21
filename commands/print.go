@@ -37,6 +37,7 @@ type report struct {
 
 	statusCodeDist map[int]int
 	lats           []float64
+	latsById       []float64
 
 	output string
 }
@@ -44,6 +45,7 @@ type report struct {
 func newReport(size int, results chan *result, output string) *report {
 	return &report{
 		statusCodeDist: make(map[int]int),
+		latsById:       make([]float64, size),
 		results:        results,
 		output:         output,
 	}
@@ -56,6 +58,7 @@ func (r *report) finalize(total time.Duration) {
 			r.lats = append(r.lats, res.duration.Seconds())
 			r.avgTotal += res.duration.Seconds()
 			r.statusCodeDist[res.statusCode]++
+			r.latsById[res.id] = res.duration.Seconds()
 		default:
 			r.total = total
 			r.rps = float64(len(r.lats)) / r.total.Seconds()
@@ -83,6 +86,7 @@ func (r *report) print() {
 		fmt.Printf("  Average:\t%4.4f secs.\n", r.average)
 		fmt.Printf("  Requests/sec:\t%4.4f\n", r.rps)
 		r.printStatusCodes()
+		r.printFancyGraph()
 		r.printHistogram()
 		r.printLatencies()
 	}
@@ -145,6 +149,41 @@ func (r *report) printHistogram() {
 		}
 		fmt.Printf("  %4.3f [%v]\t|%v\n", buckets[i], counts[i], strings.Repeat(barChar, barLen))
 	}
+}
+
+const (
+	rows = 20
+	cols = 60
+)
+
+func (r *report) printFancyGraph() {
+	var maxLat float64
+	for i := 0; i < len(r.latsById); i++ {
+		if r.latsById[i] > maxLat {
+			maxLat = r.latsById[i]
+		}
+	}
+	yNorm := float64(rows) / maxLat
+	xNorm := float64(cols) / float64(len(r.latsById))
+	var graph [rows + 1][cols + 1]int
+	for i := 0; i < len(r.latsById); i++ {
+		y := r.latsById[i] * yNorm
+		x := float64(i) * xNorm
+		graph[int(y)][int(x)]++
+	}
+	fmt.Printf("\nLatency vs Time:\n")
+	for i := 0; i < rows; i++ {
+		fmt.Printf(" %5.2f |", maxLat-(float64(i)*maxLat/float64(rows)))
+		for j := 0; j < cols; j++ {
+			if graph[rows-i][j] == 0 {
+				fmt.Printf(" ")
+			} else {
+				fmt.Printf("x")
+			}
+		}
+		fmt.Println("")
+	}
+	fmt.Printf("       |%v\n", strings.Repeat("_", cols))
 }
 
 // Prints status code distribution.
