@@ -153,18 +153,12 @@ func (r *report) printHistogram() {
 
 const (
 	rows = 20
-	cols = 60
+	cols = 50
 )
 
 func (r *report) printFancyGraph() {
-	var maxLat float64
 	sampleCnt := len(r.latsById)
-	for i := 0; i < sampleCnt; i++ {
-		if r.latsById[i] > maxLat {
-			maxLat = r.latsById[i]
-		}
-	}
-	yNorm := float64(rows) / maxLat
+	yNorm := float64(rows) / r.slowest
 	xNorm := float64(cols) / float64(sampleCnt)
 	var graph [rows + 1][cols + 1]int
 	for i := 0; i < len(r.latsById); i++ {
@@ -177,7 +171,7 @@ func (r *report) printFancyGraph() {
 	tiny := int(maxSamples/5.0) + 1
 	medium := tiny + int(maxSamples/3.0)
 	for i := 0; i < rows; i++ {
-		fmt.Printf(" %5.2f |", maxLat-(float64(i)*maxLat/float64(rows)))
+		fmt.Printf("  %5.3f |", r.slowest-(float64(i)*r.slowest/float64(rows)))
 		for j := 0; j < cols; j++ {
 			val := graph[rows-i][j]
 			if val == 0 {
@@ -192,7 +186,7 @@ func (r *report) printFancyGraph() {
 		}
 		fmt.Println("")
 	}
-	fmt.Printf("       |%v\n", strings.Repeat("_", cols))
+	fmt.Printf("        |%v\n", strings.Repeat("_", cols))
 }
 
 // Prints status code distribution.
