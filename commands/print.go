@@ -37,7 +37,11 @@ type report struct {
 
 	statusCodeDist map[int]int
 	lats           []float64
+<<<<<<< HEAD
 	latsById       []float64
+=======
+	errors         map[string]int
+>>>>>>> master
 
 	output string
 }
@@ -48,6 +52,7 @@ func newReport(size int, results chan *result, output string) *report {
 		latsById:       make([]float64, size),
 		results:        results,
 		output:         output,
+		errors:         make(map[string]int),
 	}
 }
 
@@ -55,10 +60,13 @@ func (r *report) finalize(total time.Duration) {
 	for {
 		select {
 		case res := <-r.results:
-			r.lats = append(r.lats, res.duration.Seconds())
-			r.avgTotal += res.duration.Seconds()
-			r.statusCodeDist[res.statusCode]++
-			r.latsById[res.id] = res.duration.Seconds()
+			if res.err != nil {
+				r.errors[res.err.Error()]++
+			} else {
+				r.lats = append(r.lats, res.duration.Seconds())
+				r.avgTotal += res.duration.Seconds()
+				r.statusCodeDist[res.statusCode]++
+			}
 		// default is executed when results channel is empty.
 		default:
 			r.total = total
@@ -71,13 +79,14 @@ func (r *report) finalize(total time.Duration) {
 }
 
 func (r *report) print() {
-	if len(r.lats) > 0 {
-		sort.Float64s(r.lats)
+	sort.Float64s(r.lats)
 
-		if r.output == "csv" {
-			r.printCSV()
-			return
-		}
+	if r.output == "csv" {
+		r.printCSV()
+		return
+	}
+
+	if len(r.lats) > 0 {
 		r.fastest = r.lats[0]
 		r.slowest = r.lats[len(r.lats)-1]
 		fmt.Printf("\nSummary:\n")
@@ -90,6 +99,10 @@ func (r *report) print() {
 		r.printLatencyGraph()
 		r.printHistogram()
 		r.printLatencies()
+	}
+
+	if len(r.errors) > 0 {
+		r.printErrors()
 	}
 }
 
@@ -195,5 +208,12 @@ func (r *report) printStatusCodes() {
 	fmt.Printf("\nStatus code distribution:\n")
 	for code, num := range r.statusCodeDist {
 		fmt.Printf("  [%d]\t%d responses\n", code, num)
+	}
+}
+
+func (r *report) printErrors() {
+	fmt.Printf("\nError distribution:\n")
+	for error, num := range r.errors {
+		fmt.Printf("  [%d]\t%s\n", num, error)
 	}
 }
