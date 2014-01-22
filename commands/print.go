@@ -59,6 +59,7 @@ func (r *report) finalize(total time.Duration) {
 			r.avgTotal += res.duration.Seconds()
 			r.statusCodeDist[res.statusCode]++
 			r.latsById[res.id] = res.duration.Seconds()
+		// default is executed when results channel is empty.
 		default:
 			r.total = total
 			r.rps = float64(len(r.lats)) / r.total.Seconds()
@@ -86,7 +87,7 @@ func (r *report) print() {
 		fmt.Printf("  Average:\t%4.4f secs.\n", r.average)
 		fmt.Printf("  Requests/sec:\t%4.4f\n", r.rps)
 		r.printStatusCodes()
-		r.printFancyGraph()
+		r.printLatencyGraph()
 		r.printHistogram()
 		r.printLatencies()
 	}
@@ -156,7 +157,7 @@ const (
 	cols = 50
 )
 
-func (r *report) printFancyGraph() {
+func (r *report) printLatencyGraph() {
 	sampleCnt := len(r.latsById)
 	yNorm := float64(rows) / r.slowest
 	xNorm := float64(cols) / float64(sampleCnt)
@@ -164,16 +165,17 @@ func (r *report) printFancyGraph() {
 	for i := 0; i < len(r.latsById); i++ {
 		y := r.latsById[i] * yNorm
 		x := float64(i) * xNorm
-		graph[int(y)][int(x)]++
+		fmt.Printf("%v. %5.3f %v %v\n", i, r.latsById[i], int(x), int(y))
+		graph[rows-int(y)][int(x)]++
 	}
-	fmt.Printf("\nLatency vs Time:\n")
+	fmt.Printf("\nLatency of Requests:\n")
 	maxSamples := float64(sampleCnt) / float64(cols)
 	tiny := int(maxSamples/5.0) + 1
 	medium := tiny + int(maxSamples/3.0)
 	for i := 0; i < rows; i++ {
-		fmt.Printf("  %5.3f |", r.slowest-(float64(i)*r.slowest/float64(rows)))
+		fmt.Printf("  %5.3f |", float64(rows-i)/yNorm)
 		for j := 0; j < cols; j++ {
-			val := graph[rows-i][j]
+			val := graph[i][j]
 			if val == 0 {
 				fmt.Printf(" ")
 			} else if val <= tiny {
@@ -186,7 +188,7 @@ func (r *report) printFancyGraph() {
 		}
 		fmt.Println("")
 	}
-	fmt.Printf("        |%v\n", strings.Repeat("_", cols))
+	fmt.Printf("        %v\n", strings.Repeat("¯", cols))
 }
 
 // Prints status code distribution.
