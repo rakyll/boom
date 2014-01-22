@@ -165,7 +165,6 @@ func (r *report) printLatencyGraph() {
 	for i := 0; i < len(r.latsById); i++ {
 		y := r.latsById[i] * yNorm
 		x := float64(i) * xNorm
-		fmt.Printf("%v. %5.3f %v %v\n", i, r.latsById[i], int(x), int(y))
 		graph[rows-int(y)][int(x)]++
 	}
 	fmt.Printf("\nLatency of Requests:\n")
