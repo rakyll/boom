@@ -61,6 +61,7 @@ func (r *report) finalize(total time.Duration) {
 				r.errors[res.err.Error()]++
 			} else {
 				r.lats = append(r.lats, res.duration.Seconds())
+				r.latsById[res.id] = res.duration.Seconds()
 				r.avgTotal += res.duration.Seconds()
 				r.statusCodeDist[res.statusCode]++
 			}
