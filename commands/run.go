@@ -30,12 +30,12 @@ func (b *Boom) Run() {
 	b.run()
 }
 
-func (b *Boom) worker(ch chan bool) {
+func (b *Boom) worker(ch chan int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: b.AllowInsecure, ServerName: b.OrigServerName},
 	}
 	client := &http.Client{Transport: tr}
-	for _ = range ch {
+	for id := range ch {
 		s := time.Now()
 		resp, err := client.Do(b.Req)
 		code := 0
@@ -48,9 +48,14 @@ func (b *Boom) worker(ch chan bool) {
 			b.bar.Increment()
 		}
 		b.results <- &result{
+			id:         id,
 			statusCode: code,
-			duration:   time.Now().Sub(s),
+			duration:   time.Since(s),
 			err:        err,
+			timeInfo: timing{
+				respTime: time.Since(b.start),
+				duration: time.Since(s),
+			},
 		}
 	}
 }
@@ -64,8 +69,8 @@ func (b *Boom) run() {
 		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
 	}
 
-	start := time.Now()
-	jobs := make(chan bool, b.N)
+	b.start = time.Now()
+	jobs := make(chan int, b.N)
 	// Start workers.
 	for i := 0; i < b.C; i++ {
 		go func() {
@@ -79,7 +84,7 @@ func (b *Boom) run() {
 		if b.Qps > 0 {
 			<-throttle
 		}
-		jobs <- true
+		jobs <- i
 	}
 	close(jobs)
 
@@ -87,5 +92,5 @@ func (b *Boom) run() {
 	if b.bar != nil {
 		b.bar.Finish()
 	}
-	b.rpt.finalize(time.Now().Sub(start))
+	b.rpt.finalize(time.Now().Sub(b.start))
 }
