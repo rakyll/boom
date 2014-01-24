@@ -22,10 +22,30 @@ import (
 	"github.com/rakyll/pb"
 )
 
+type timing struct {
+	// Delta from program start time
+	respTime  time.Duration
+	duration time.Duration
+}
+
+type latencies []timing
+
+// Sort interface functions
+func (s latencies) Len() int {
+	return len(s)
+}
+func (s latencies) Less(i, j int) bool {
+	return s[i].respTime.Nanoseconds() < s[j].respTime.Nanoseconds()
+}
+func (s latencies) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 type result struct {
 	id         int
 	err        error
 	statusCode int
+	timeInfo   timing
 	duration   time.Duration
 }
 
@@ -52,6 +72,8 @@ type Boom struct {
 	bar     *pb.ProgressBar
 	rpt     *report
 	results chan *result
+
+	start time.Time
 }
 
 func newPb(size int) (bar *pb.ProgressBar) {

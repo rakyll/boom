@@ -38,6 +38,7 @@ type report struct {
 	statusCodeDist map[int]int
 	lats           []float64
 	latsById       []float64
+	latencies      latencies
 	errors         map[string]int
 
 	output string
@@ -61,6 +62,7 @@ func (r *report) finalize(total time.Duration) {
 				r.errors[res.err.Error()]++
 			} else {
 				r.lats = append(r.lats, res.duration.Seconds())
+				r.latencies = append(r.latencies, res.timeInfo)
 				r.latsById[res.id] = res.duration.Seconds()
 				r.avgTotal += res.duration.Seconds()
 				r.statusCodeDist[res.statusCode]++
@@ -78,6 +80,11 @@ func (r *report) finalize(total time.Duration) {
 
 func (r *report) print() {
 	sort.Float64s(r.lats)
+	sort.Sort(r.latencies)
+	for i := 0; i < len(r.latencies); i++ {
+		fmt.Printf("%3.3f %3.3f\n", r.latencies[i].respTime.Seconds(),
+			r.latencies[i].duration.Seconds())
+	}
 
 	if r.output == "csv" {
 		r.printCSV()
@@ -169,36 +176,56 @@ const (
 )
 
 func (r *report) printLatencyGraph() {
-	sampleCnt := len(r.latsById)
-	yNorm := float64(rows) / r.slowest
-	xNorm := float64(cols) / float64(sampleCnt)
+	sampleCnt := len(r.latencies)
+	// Normalization factor on X axis.
+	stepSize := r.total.Seconds() / float64(cols)
+	// Window size is 1 second.
+	windowSize := 1.0
+	// Create a 2D array that represents the graph.
 	var graph [rows + 1][cols + 1]int
-	for i := 0; i < len(r.latsById); i++ {
-		y := r.latsById[i] * yNorm
-		x := float64(i) * xNorm
-		graph[rows-int(y)][int(x)]++
-	}
-	fmt.Printf("\nLatency of Requests:\n")
-	maxSamples := float64(sampleCnt) / float64(cols)
-	tiny := int(maxSamples/5.0) + 1
-	medium := tiny + int(maxSamples/3.0)
-	for i := 0; i < rows; i++ {
-		fmt.Printf("  %5.3f |", float64(rows-i)/yNorm)
-		for j := 0; j < cols; j++ {
-			val := graph[i][j]
-			if val == 0 {
-				fmt.Printf(" ")
-			} else if val <= tiny {
-				fmt.Printf(".")
-			} else if val <= medium {
-				fmt.Printf("-")
-			} else {
-				fmt.Printf("x")
+	// Create an array for accumulating requests per time slice
+	var req [cols]int
+	// Max slot size, this will be used for normalizing values on Y axis.
+	maxSlotSize := 0
+	// Fill slots with response timings on a sliding window of 1.0 seconds
+	windowStart := 0.0
+	for i := 0; i < cols; i++ {
+		for j := 0; j < sampleCnt; j++ {
+			lat := r.latencies[j].respTime.Seconds()
+			if lat >= windowStart && lat < windowStart+windowSize {
+				req[i]++
+				if req[i] > maxSlotSize {
+					maxSlotSize = req[i]
+				}
 			}
 		}
-		fmt.Println("")
+		if windowStart+windowSize < r.total.Seconds() {
+			windowStart += stepSize
+		}
 	}
-	fmt.Printf("        %v\n", strings.Repeat("¯", cols))
+	for i := 0; i < len(req); i++ {
+		fmt.Println(req[i])
+	}
+	yNorm := float64(rows) / float64(maxSlotSize)
+	for i := 0; i < len(req); i++ {
+		y := yNorm * float64(req[i])
+		if req[i] > 0 {
+			graph[rows-int(y)][i] = 1
+		}
+	}
+	for i := 0; i < rows; i++ {
+		fmt.Printf("  %5.1f |", float64(rows-i)/yNorm)
+		for j := 0; j < cols; j++ {
+			val := graph[i][j]
+			if val > 0 {
+				fmt.Printf("x")
+			} else {
+				fmt.Printf(" ")
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Printf("        %v %3.2fs\n", strings.Repeat("¯", cols), r.total.Seconds())
 }
 
 // Prints status code distribution.

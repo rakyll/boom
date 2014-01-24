@@ -50,8 +50,12 @@ func (b *Boom) worker(ch chan int) {
 		b.results <- &result{
 			id:         id,
 			statusCode: code,
-			duration:   time.Now().Sub(s),
+			duration:   time.Since(s),
 			err:        err,
+			timeInfo: timing{
+				respTime: time.Since(b.start),
+				duration: time.Since(s),
+			},
 		}
 	}
 }
@@ -65,7 +69,7 @@ func (b *Boom) run() {
 		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
 	}
 
-	start := time.Now()
+	b.start = time.Now()
 	jobs := make(chan int, b.N)
 	// Start workers.
 	for i := 0; i < b.C; i++ {
@@ -88,5 +92,5 @@ func (b *Boom) run() {
 	if b.bar != nil {
 		b.bar.Finish()
 	}
-	b.rpt.finalize(time.Now().Sub(start))
+	b.rpt.finalize(time.Now().Sub(b.start))
 }
