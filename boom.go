@@ -182,7 +182,6 @@ func resolveUrl(url string) (string, string) {
 	serverName, port, err := net.SplitHostPort(uri.Host)
 	if err != nil {
 		serverName = uri.Host
-		port = "80"
 	}
 	var addrs []string
 	if net.ParseIP(serverName) != nil {
