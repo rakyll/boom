@@ -16,6 +16,7 @@ package boomer
 
 import (
 	"crypto/tls"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -37,16 +38,26 @@ func (b *Boomer) worker(ch chan *http.Request) {
 	host, _, _ := net.SplitHostPort(b.Req.OriginalHost)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: b.AllowInsecure, ServerName: host},
-	}
-	if b.ProxyAddr != "" {
-		tr.Dial = func(network string, addr string) (conn net.Conn, err error) {
-			return net.Dial(network, b.ProxyAddr)
-		}
+		Dial: func(network, address string) (net.Conn, error) {
+			if b.ProxyAddr != "" {
+				address = b.ProxyAddr
+			}
+			connection, err := net.DialTimeout(network, address, b.Timeout)
+			if err != nil {
+				return nil, err
+			}
+			deadline := time.Now().Add(b.Timeout)
+			connection.SetDeadline(deadline)
+			connection.SetReadDeadline(deadline)
+			connection.SetWriteDeadline(deadline)
+			return connection, nil
+		},
 	}
 	client := &http.Client{Transport: tr}
 	for req := range ch {
 		s := time.Now()
 		resp, err := client.Do(req)
+		duration := time.Since(s)
 		code := 0
 		var size int64 = -1
 		if resp != nil {
@@ -59,14 +70,14 @@ func (b *Boomer) worker(ch chan *http.Request) {
 			// cleanup body, so the socket can be reusable
 			resp.Body.Close()
 		}
-		if b.bar != nil {
-			b.bar.Increment()
-		}
 		b.results <- &result{
 			statusCode:    code,
-			duration:      time.Now().Sub(s),
+			duration:      duration,
 			err:           err,
 			contentLength: size,
+		}
+		if b.bar != nil {
+			b.bar.Increment()
 		}
 	}
 }

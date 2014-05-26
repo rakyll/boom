@@ -16,11 +16,10 @@
 package boomer
 
 import (
+	"github.com/rakyll/pb"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/rakyll/pb"
 )
 
 type result struct {
@@ -63,8 +62,8 @@ type Boomer struct {
 	N int
 	// Concurrency level, the number of concurrent workers to run.
 	C int
-	// Timeout in seconds.
-	Timeout int
+	// Timeout.
+	Timeout time.Duration
 	// Rate limit.
 	Qps int
 	// Option to allow insecure TLS/SSL certificates.
