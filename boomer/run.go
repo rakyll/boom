@@ -41,15 +41,23 @@ func (b *Boomer) worker(ch chan *http.Request) {
 			if b.ProxyAddr != "" {
 				address = b.ProxyAddr
 			}
-			connection, err := net.DialTimeout(network, address, b.Timeout)
-			if err != nil {
-				return nil, err
+			if b.Timeout > 0 {
+				connection, err := net.DialTimeout(network, address, b.Timeout)
+				if err != nil {
+					return nil, err
+				}
+				deadline := time.Now().Add(b.Timeout)
+				connection.SetDeadline(deadline)
+				connection.SetReadDeadline(deadline)
+				connection.SetWriteDeadline(deadline)
+				return connection, nil
+			} else {
+				connection, err := net.Dial(network, address)
+				if err != nil {
+					return nil, err
+				}
+				return connection, nil
 			}
-			deadline := time.Now().Add(b.Timeout)
-			connection.SetDeadline(deadline)
-			connection.SetReadDeadline(deadline)
-			connection.SetWriteDeadline(deadline)
-			return connection, nil
 		},
 	}
 	client := &http.Client{Transport: tr}
