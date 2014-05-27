@@ -16,7 +16,6 @@ package boomer
 
 import (
 	"crypto/tls"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net"
