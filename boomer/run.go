@@ -48,8 +48,6 @@ func (b *Boomer) worker(ch chan *http.Request) {
 				}
 				deadline := time.Now().Add(b.Timeout)
 				connection.SetDeadline(deadline)
-				connection.SetReadDeadline(deadline)
-				connection.SetWriteDeadline(deadline)
 				return connection, nil
 			} else {
 				connection, err := net.Dial(network, address)
