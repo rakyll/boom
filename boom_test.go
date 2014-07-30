@@ -77,14 +77,3 @@ func TestParseUrl_IPv6AndPort(t *testing.T) {
 		t.Errorf("URL is expected to be http://[2a00:1450:400a:806::1007]:80, %v is found.", u)
 	}
 }
-
-func TestPrintStatsOnSIGINT(t *testing.T) {
-	defaultDnsResolver = &mockDnsResolver{Addr: "2a00:1450:400a:806::1007"}
-	u, s := resolveUrl("http://google.com:80")
-	if s != "google.com:80" {
-		t.Errorf("Original server name doesn't match with google.com, %v is found.", s)
-	}
-	if u != "http://[2a00:1450:400a:806::1007]:80" {
-		t.Errorf("URL is expected to be http://[2a00:1450:400a:806::1007]:80, %v is found.", u)
-	}
-}
