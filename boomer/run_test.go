@@ -16,10 +16,12 @@ package boomer
 
 import (
 	"io/ioutil"
+        "fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"sync/atomic"
+        "os"
 	"testing"
 	"time"
 )
@@ -184,3 +186,33 @@ func TestContentLengthIfDontExists(t *testing.T) {
 		t.Errorf("Expected Total Data Received 200 bytes, found %v", boomer.rpt.sizeTotal)
 	}
 }
+
+
+func TestPrintResultsOnSIGINT(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+
+	boomer := &Boomer{
+		Req: &ReqOpts{
+			Method: "GET",
+			Url:    server.URL,
+		},
+		N: 100,
+		C: 1,
+	}
+        currentProcess, err := os.FindProcess(os.Getpid())
+
+        boomer.Run()
+
+        currentProcess.Signal(os.Interrupt);
+
+        if err != nil {
+                fmt.Println("ERROR")
+                t.Error("Error trying to find process PID");
+        }
+
+        //If boomer doesn't catch the signal then test will fail
+}
+
