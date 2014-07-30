@@ -23,7 +23,6 @@ import (
 	"net"
 	"net/http"
         "os/signal"
-        "fmt"
 	"sync"
 	"time"
 )
