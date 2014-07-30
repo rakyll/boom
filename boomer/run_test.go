@@ -203,15 +203,15 @@ func TestPrintResultsOnSIGINT(t *testing.T) {
 		C: 1,
 	}
         currentProcess, err := os.FindProcess(os.Getpid())
+        if err != nil {
+                fmt.Println("ERROR")
+                t.Error("Error trying to find process PID");
+        }
 
         boomer.Run()
 
         currentProcess.Signal(os.Interrupt);
 
-        if err != nil {
-                fmt.Println("ERROR")
-                t.Error("Error trying to find process PID");
-        }
 
         //If boomer doesn't catch the signal then test will fail
 }
