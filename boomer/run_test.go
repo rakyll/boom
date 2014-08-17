@@ -143,8 +143,9 @@ func TestBody(t *testing.T) {
 }
 
 func TestContentLengthIfExists(t *testing.T) {
+	buf := make([]byte, 20)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", "20")
+		w.Write(buf)
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
@@ -159,8 +160,8 @@ func TestContentLengthIfExists(t *testing.T) {
 	}
 	boomer.Run()
 
-	if boomer.rpt.sizeTotal != 200 {
-		t.Errorf("Expected Total Data Received 200 bytes, found %v", boomer.rpt.sizeTotal)
+	if exp := int64(len(buf) * boomer.N); boomer.rpt.sizeTotal != exp {
+		t.Errorf("Expected Total Data Received %d bytes, found %d", exp, boomer.rpt.sizeTotal)
 	}
 }
 
@@ -181,6 +182,60 @@ func TestContentLengthIfDontExists(t *testing.T) {
 	boomer.Run()
 
 	if boomer.rpt.sizeTotal != 0 {
-		t.Errorf("Expected Total Data Received 200 bytes, found %v", boomer.rpt.sizeTotal)
+		t.Errorf("Expected Total Data Received 0 bytes, found %v", boomer.rpt.sizeTotal)
 	}
+}
+
+func testTimeout(t *testing.T, handler func(delay time.Duration, w http.ResponseWriter)) {
+	var count int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var delay time.Duration
+		if atomic.AddInt64(&count, 1)%2 == 0 {
+			delay = 200 * time.Millisecond
+		}
+		handler(delay, w)
+	}))
+	defer server.Close()
+
+	boomer := &Boomer{
+		Req: &ReqOpts{
+			Method: "GET",
+			Url:    server.URL,
+		},
+		Timeout: 100 * time.Millisecond,
+		N:       20,
+		C:       5,
+	}
+	boomer.Run()
+
+	errs := 0
+	expErrStr := errTimeout.Error()
+	for errStr, i := range boomer.rpt.errors {
+		if errStr != expErrStr {
+			t.Errorf("Expected %q error, got %q", expErrStr, errStr)
+		}
+		errs += i
+	}
+	if exp := boomer.N / 2; errs != exp {
+		t.Errorf("Expected %d errors, found %d", exp, errs)
+	}
+}
+
+func TestTimeoutHeaders(t *testing.T) {
+	t.Parallel()
+	testTimeout(t, func(delay time.Duration, w http.ResponseWriter) {
+		time.Sleep(delay)
+	})
+}
+
+func TestTimeoutBody(t *testing.T) {
+	t.Parallel()
+	testTimeout(t, func(delay time.Duration, w http.ResponseWriter) {
+		// Write enough data to make the buffers flush at least once. 4k is currently enough
+		// but this behavior is hidden in the http package, so let's throw some extra at it
+		// in the hope that the test stays somewhat resilient to future underlying changes.
+		buf := make([]byte, 8<<10)
+		w.Write(buf)
+		time.Sleep(delay)
+	})
 }

@@ -41,7 +41,7 @@ var (
 	flagC = flag.Int("c", 50, "")
 	flagN = flag.Int("n", 200, "")
 	flagQ = flag.Int("q", 0, "")
-	flagT = flag.Int("t", 0, "")
+	flagT = flag.Duration("t", 0, "")
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -62,6 +62,7 @@ Options:
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port
+  -t  Timeout, e.g. "1m30s", "5s", "500ms".
 
   -allow-insecure Allow bad/expired TLS/SSL certificates.
 `
