@@ -62,9 +62,7 @@ func (r *report) finalize(total time.Duration) {
 				r.lats = append(r.lats, res.duration.Seconds())
 				r.avgTotal += res.duration.Seconds()
 				r.statusCodeDist[res.statusCode]++
-				if res.contentLength > 0 {
-					r.sizeTotal += res.contentLength
-				}
+				r.sizeTotal += res.contentLength
 			}
 		default:
 			r.total = total

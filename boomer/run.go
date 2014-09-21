@@ -16,6 +16,7 @@ package boomer
 
 import (
 	"crypto/tls"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -23,6 +24,8 @@ import (
 	"sync"
 	"time"
 )
+
+var errTimeout = errors.New("timeout")
 
 func (b *Boomer) Run() {
 	b.results = make(chan *result, b.N)
@@ -45,30 +48,49 @@ func (b *Boomer) worker(ch chan *http.Request) {
 	}
 	client := &http.Client{Transport: tr}
 	for req := range ch {
-		s := time.Now()
-		resp, err := client.Do(req)
-		code := 0
-		var size int64 = -1
-		if resp != nil {
-			code = resp.StatusCode
-			if resp.ContentLength > 0 {
-				size = resp.ContentLength
-			}
-			// consume the whole body
-			io.Copy(ioutil.Discard, resp.Body)
-			// cleanup body, so the socket can be reusable
-			resp.Body.Close()
-		}
+		b.results <- doTimeout(client, req, tr, b.Timeout)
 		if b.bar != nil {
 			b.bar.Increment()
 		}
-		b.results <- &result{
-			statusCode:    code,
-			duration:      time.Now().Sub(s),
-			err:           err,
-			contentLength: size,
-		}
 	}
+}
+
+func doTimeout(client *http.Client, req *http.Request, tr *http.Transport, timeout time.Duration) *result {
+	if timeout == 0 {
+		return do(client, req)
+	}
+	if timeout < 0 {
+		return &result{err: errTimeout}
+	}
+
+	t := time.NewTicker(timeout)
+	defer t.Stop()
+	resc := make(chan *result, 1)
+	go func() {
+		resc <- do(client, req)
+	}()
+	select {
+	case <-t.C:
+		tr.CancelRequest(req)
+		return &result{err: errTimeout}
+	case r := <-resc:
+		return r
+	}
+}
+
+func do(client *http.Client, req *http.Request) *result {
+	s := time.Now()
+	resp, err := client.Do(req)
+	r := &result{err: err}
+	if resp != nil {
+		r.statusCode = resp.StatusCode
+		// consume the whole body
+		r.contentLength, r.err = io.Copy(ioutil.Discard, resp.Body)
+		// cleanup body, so the socket can be reusable
+		resp.Body.Close()
+	}
+	r.duration = time.Since(s)
+	return r
 }
 
 func (b *Boomer) run() {

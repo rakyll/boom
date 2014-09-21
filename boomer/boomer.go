@@ -37,7 +37,7 @@ type ReqOpts struct {
 	Body     string
 	Username string
 	Password string
-	// Request host is an resolved IP. TLS/SSL handshakes may require
+	// Request host is a resolved IP. TLS/SSL handshakes may require
 	// the original server name, keep it to initate the TLS client.
 	OriginalHost string
 }
@@ -63,8 +63,8 @@ type Boomer struct {
 	N int
 	// Concurrency level, the number of concurrent workers to run.
 	C int
-	// Timeout in seconds.
-	Timeout int
+	// Timeout of individual request.
+	Timeout time.Duration
 	// Rate limit.
 	Qps int
 	// Option to allow insecure TLS/SSL certificates.
