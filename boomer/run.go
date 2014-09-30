@@ -17,9 +17,12 @@ package boomer
 import (
 	"crypto/tls"
 	"io"
+        "os"
+        "log"
 	"io/ioutil"
 	"net"
 	"net/http"
+        "os/signal"
 	"sync"
 	"time"
 )
@@ -72,6 +75,16 @@ func (b *Boomer) worker(ch chan *http.Request) {
 }
 
 func (b *Boomer) run() {
+	start := time.Now()
+        c := make(chan os.Signal, 1)
+        signal.Notify(c, os.Interrupt)
+        go func(){
+                for sig := range c {
+                        log.Printf("captured %v, stopping boom and exiting..", sig)
+                        b.rpt.finalize(time.Now().Sub(start))
+                        os.Exit(1)
+                }
+        }()
 	var wg sync.WaitGroup
 	wg.Add(b.C)
 
@@ -80,7 +93,6 @@ func (b *Boomer) run() {
 		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
 	}
 
-	start := time.Now()
 	jobs := make(chan *http.Request, b.N)
 	// Start workers.
 	for i := 0; i < b.C; i++ {
