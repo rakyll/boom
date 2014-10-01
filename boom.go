@@ -18,14 +18,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/rakyll/boom/boomer"
 	"net"
 	"net/http"
 	gourl "net/url"
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/rakyll/boom/boomer"
+	"time"
 )
 
 const (
@@ -47,7 +47,7 @@ var (
 	flagC = flag.Int("c", 50, "")
 	flagN = flag.Int("n", 200, "")
 	flagQ = flag.Int("q", 0, "")
-	flagT = flag.Int("t", 0, "")
+	flagT = flag.Float64("t", 0.0, "")
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -68,6 +68,7 @@ Options:
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port
+  -t  Timeout in seconds (as a float up to milliseconds).
 
   -allow-insecure Allow bad/expired TLS/SSL certificates.
 `
@@ -150,6 +151,8 @@ func main() {
 		usageAndExit("Invalid output type.")
 	}
 
+	timeout := time.Duration(t*1000) * time.Millisecond
+
 	(&boomer.Boomer{
 		Req: &boomer.ReqOpts{
 			Method:       method,
@@ -163,7 +166,7 @@ func main() {
 		N:             n,
 		C:             c,
 		Qps:           q,
-		Timeout:       t,
+		Timeout:       timeout,
 		AllowInsecure: *flagInsecure,
 		Output:        *flagOutput,
 		ProxyAddr:     *flagProxyAddr}).Run()
