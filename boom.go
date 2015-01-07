@@ -41,6 +41,7 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
+	cookies     = flag.String("cookie", "", "")
 
 	output = flag.String("o", "", "")
 
@@ -76,6 +77,7 @@ Options:
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
 
+  -cookie               String to read cookies from.
   -allow-insecure       Allow bad/expired TLS/SSL certificates.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
@@ -155,6 +157,11 @@ func main() {
 			usageAndExit(err.Error())
 		}
 		username, password = match[1], match[2]
+	}
+
+	// set cookies
+	if *cookies != "" {
+		header.Set("Cookie", *cookies)
 	}
 
 	if *output != "csv" && *output != "" {
