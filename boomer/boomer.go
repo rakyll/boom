@@ -16,6 +16,7 @@
 package boomer
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,19 +39,12 @@ type ReqOpts struct {
 	Body     string
 	Username string
 	Password string
-	// OriginalHost represents the original host name user is provided.
-	// Request host is an resolved IP. TLS/SSL handshakes may require
-	// the original server name, keep it to initate the TLS client.
-	OriginalHost string
 }
 
 // Creates a req object from req options
 func (r *ReqOpts) Request() *http.Request {
 	req, _ := http.NewRequest(r.Method, r.URL, strings.NewReader(r.Body))
 	req.Header = r.Header
-
-	// update the Host value in the Request - this is used as the host header in any subsequent request
-	req.Host = r.OriginalHost
 
 	if r.Username != "" && r.Password != "" {
 		req.SetBasicAuth(r.Username, r.Password)
@@ -92,6 +86,7 @@ type Boomer struct {
 	// Optional.
 	ProxyAddr *url.URL
 
+	dial    func(network, address string) (net.Conn, error)
 	bar     *pb.ProgressBar
 	results chan *result
 }

@@ -19,7 +19,6 @@ import (
 
 	"sync"
 
-	"net"
 	"net/http"
 	"time"
 )
@@ -31,6 +30,7 @@ func (b *Boomer) Run() {
 	if b.Output == "" {
 		b.bar = newPb(b.N)
 	}
+	b.dial = newCacheDialer().Dial
 
 	start := time.Now()
 	b.run()
@@ -43,17 +43,16 @@ func (b *Boomer) Run() {
 }
 
 func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
-	host, _, _ := net.SplitHostPort(b.Req.OriginalHost)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: b.AllowInsecure,
-			ServerName:         host,
 		},
 		DisableCompression: b.DisableCompression,
 		DisableKeepAlives:  b.DisableKeepAlives,
 		// TODO(jbd): Add dial timeout.
 		TLSHandshakeTimeout: time.Duration(b.Timeout) * time.Millisecond,
 		Proxy:               http.ProxyURL(b.ProxyAddr),
+		Dial:                b.dial,
 	}
 	client := &http.Client{Transport: tr}
 	_ = client
