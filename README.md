@@ -35,7 +35,7 @@ Options:
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
-
+  -cookie               String to read cookies from.
   -allow-insecure       Allow bad/expired TLS/SSL certificates.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
