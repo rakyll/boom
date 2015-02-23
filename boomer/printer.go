@@ -9,7 +9,10 @@ import (
 // Printer defines an interface to print a report
 type Printer interface {
 	// Print receives a report and prints it
-	Print(report) error
+	Print(Report) error
+	// Defines whether or not it should display the progress bar when running
+	// the benchmark
+	ShouldDisplayProgressBar() bool
 }
 
 // CSVPrinter is an implementation of Printer to print the report in csv format
@@ -18,22 +21,27 @@ type CSVPrinter struct {
 }
 
 // Print receives a report and prints it
-func (c CSVPrinter) Print(r report) error {
-	for i, val := range r.lats {
+func (c CSVPrinter) Print(r Report) error {
+	for i, val := range r.Lats {
 		c.Writer.Write([]byte(fmt.Sprintf("%v,%4.4f\n", i+1, val)))
 	}
 	return nil
+}
+
+// Returns if it displays the progress bar or not when running the benchmark
+func (c CSVPrinter) ShouldDisplayProgressBar() bool {
+	return false
 }
 
 // DetailedPrinter is an implementation of Printer to print the details
 // of a report. It prints summary, status codes, histogram, latencies and errors
 type DetailedPrinter struct {
 	Writer io.Writer
-	r      report
+	r      Report
 }
 
 // Print receives a report and prints it
-func (d DetailedPrinter) Print(r report) error {
+func (d DetailedPrinter) Print(r Report) error {
 	d.r = r
 
 	d.printSummary()
@@ -41,28 +49,33 @@ func (d DetailedPrinter) Print(r report) error {
 	d.printHistogram()
 	d.printLatencies()
 
-	if len(d.r.errorDist) > 0 {
+	if len(d.r.ErrorDist) > 0 {
 		d.printErrors()
 	}
 	return nil
 }
 
+// Returns if it displays the progress bar or not when running the benchmark
+func (d DetailedPrinter) ShouldDisplayProgressBar() bool {
+	return true
+}
+
 func (d DetailedPrinter) printSummary() {
 	fmt.Fprintf(d.Writer, "\nSummary:\n")
-	fmt.Fprintf(d.Writer, "  Total:\t%4.4f secs.\n", d.r.total.Seconds())
-	fmt.Fprintf(d.Writer, "  Slowest:\t%4.4f secs.\n", d.r.slowest)
-	fmt.Fprintf(d.Writer, "  Fastest:\t%4.4f secs.\n", d.r.fastest)
-	fmt.Fprintf(d.Writer, "  Average:\t%4.4f secs.\n", d.r.average)
-	fmt.Fprintf(d.Writer, "  Requests/sec:\t%4.4f\n", d.r.rps)
-	if d.r.sizeTotal > 0 {
-		fmt.Fprintf(d.Writer, "  Total Data Received:\t%d bytes.\n", d.r.sizeTotal)
-		fmt.Fprintf(d.Writer, "  Response Size per Request:\t%d bytes.\n", d.r.sizeTotal/int64(len(d.r.lats)))
+	fmt.Fprintf(d.Writer, "  Total:\t%4.4f secs.\n", d.r.Total.Seconds())
+	fmt.Fprintf(d.Writer, "  Slowest:\t%4.4f secs.\n", d.r.Slowest)
+	fmt.Fprintf(d.Writer, "  Fastest:\t%4.4f secs.\n", d.r.Fastest)
+	fmt.Fprintf(d.Writer, "  Average:\t%4.4f secs.\n", d.r.Average)
+	fmt.Fprintf(d.Writer, "  Requests/sec:\t%4.4f\n", d.r.Rps)
+	if d.r.SizeTotal > 0 {
+		fmt.Fprintf(d.Writer, "  Total Data Received:\t%d bytes.\n", d.r.SizeTotal)
+		fmt.Fprintf(d.Writer, "  Response Size per Request:\t%d bytes.\n", d.r.SizeTotal/int64(len(d.r.Lats)))
 	}
 }
 
 func (d DetailedPrinter) printStatusCodes() {
 	fmt.Fprintf(d.Writer, "\nStatus code distribution:\n")
-	for code, num := range d.r.statusCodeDist {
+	for code, num := range d.r.StatusCodeDist {
 		fmt.Fprintf(d.Writer, "  [%d]\t%d responses\n", code, num)
 	}
 }
@@ -71,15 +84,15 @@ func (d DetailedPrinter) printHistogram() {
 	bc := 10
 	buckets := make([]float64, bc+1)
 	counts := make([]int, bc+1)
-	bs := (d.r.slowest - d.r.fastest) / float64(bc)
+	bs := (d.r.Slowest - d.r.Fastest) / float64(bc)
 	for i := 0; i < bc; i++ {
-		buckets[i] = d.r.fastest + bs*float64(i)
+		buckets[i] = d.r.Fastest + bs*float64(i)
 	}
-	buckets[bc] = d.r.slowest
+	buckets[bc] = d.r.Slowest
 	var bi int
 	var max int
-	for i := 0; i < len(d.r.lats); {
-		if d.r.lats[i] <= buckets[bi] {
+	for i := 0; i < len(d.r.Lats); {
+		if d.r.Lats[i] <= buckets[bi] {
 			i++
 			counts[bi]++
 			if max < counts[bi] {
@@ -102,7 +115,7 @@ func (d DetailedPrinter) printHistogram() {
 
 func (d DetailedPrinter) printErrors() {
 	fmt.Fprintf(d.Writer, "\nError distribution:\n")
-	for err, num := range d.r.errorDist {
+	for err, num := range d.r.ErrorDist {
 		fmt.Fprintf(d.Writer, "  [%d]\t%s\n", num, err)
 	}
 }
@@ -112,10 +125,10 @@ func (d DetailedPrinter) printLatencies() {
 	pctls := []int{10, 25, 50, 75, 90, 95, 99}
 	data := make([]float64, len(pctls))
 	j := 0
-	for i := 0; i < len(d.r.lats) && j < len(pctls); i++ {
-		current := i * 100 / len(d.r.lats)
+	for i := 0; i < len(d.r.Lats) && j < len(pctls); i++ {
+		current := i * 100 / len(d.r.Lats)
 		if current >= pctls[j] {
-			data[j] = d.r.lats[i]
+			data[j] = d.r.Lats[i]
 			j++
 		}
 	}

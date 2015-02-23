@@ -21,6 +21,7 @@ import (
 
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -28,17 +29,18 @@ import (
 // all work is done.
 func (b *Boomer) Run() {
 	b.results = make(chan *result, b.N)
-	if b.Output == "" {
+	printer := b.getPrinter(b.Output)
+	if printer.ShouldDisplayProgressBar() {
 		b.bar = newPb(b.N)
 	}
 
 	start := time.Now()
 	b.run()
-	if b.Output == "" {
+	if printer.ShouldDisplayProgressBar() {
 		b.bar.Finish()
 	}
 
-	printReport(b.N, b.results, b.Output, time.Now().Sub(start))
+	printReport(b.N, b.results, printer, time.Now().Sub(start))
 	close(b.results)
 }
 
@@ -104,4 +106,23 @@ func (b *Boomer) run() {
 	close(jobs)
 
 	wg.Wait()
+}
+
+func (b *Boomer) getPrinter(output string) Printer {
+	if b.Printer != nil {
+		return b.Printer
+	}
+
+	// from this line forward is for backwards compatibility
+	var printer Printer
+	if output == "csv" {
+		printer = CSVPrinter{
+			Writer: os.Stdout,
+		}
+	} else {
+		printer = DetailedPrinter{
+			Writer: os.Stdout,
+		}
+	}
+	return printer
 }

@@ -170,6 +170,8 @@ func main() {
 		}
 	}
 
+	printer := getPrinter(*output)
+
 	(&boomer.Boomer{
 		Req: &boomer.ReqOpts{
 			Method:       method,
@@ -188,7 +190,7 @@ func main() {
 		DisableCompression: *disableCompression,
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
-		Output:             *output,
+		Printer:            printer,
 	}).Run()
 }
 
@@ -253,4 +255,18 @@ func parseInputWithRegexp(input, regx string) (matches []string, err error) {
 		err = errors.New("Could not parse provided input")
 	}
 	return
+}
+
+func getPrinter(output string) boomer.Printer {
+	var printer boomer.Printer
+	if output == "csv" {
+		printer = boomer.CSVPrinter{
+			Writer: os.Stdout,
+		}
+	} else {
+		printer = boomer.DetailedPrinter{
+			Writer: os.Stdout,
+		}
+	}
+	return printer
 }

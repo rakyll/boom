@@ -86,7 +86,11 @@ type Boomer struct {
 
 	// Output represents the output type. If "csv" is provided, the
 	// output will be dumped as a csv stream.
+	// DEPRECATED. Use Printer attribute instead.
 	Output string
+
+	// Printer is the implementation of Printer interface to print the report
+	Printer Printer
 
 	// ProxyAddr is the address of HTTP proxy server in the format on "host:port".
 	// Optional.

@@ -15,7 +15,6 @@
 package boomer
 
 import (
-	"os"
 	"sort"
 	"time"
 )
@@ -24,56 +23,56 @@ const (
 	barChar = "∎"
 )
 
-type report struct {
-	avgTotal float64
-	fastest  float64
-	slowest  float64
-	average  float64
-	rps      float64
+type Report struct {
+	AvgTotal float64
+	Fastest  float64
+	Slowest  float64
+	Average  float64
+	Rps      float64
 
 	results chan *result
-	total   time.Duration
+	Total   time.Duration
 
-	errorDist      map[string]int
-	statusCodeDist map[int]int
-	lats           []float64
-	sizeTotal      int64
+	ErrorDist      map[string]int
+	StatusCodeDist map[int]int
+	Lats           []float64
+	SizeTotal      int64
 
-	output string
+	printer Printer
 }
 
-func printReport(size int, results chan *result, output string, total time.Duration) {
-	r := &report{
-		output:         output,
+func printReport(size int, results chan *result, printer Printer, total time.Duration) {
+	r := &Report{
+		printer:        printer,
 		results:        results,
-		total:          total,
-		statusCodeDist: make(map[int]int),
-		errorDist:      make(map[string]int),
+		Total:          total,
+		StatusCodeDist: make(map[int]int),
+		ErrorDist:      make(map[string]int),
 	}
 	r.finalize()
 }
 
-func (r *report) finalize() {
+func (r *Report) finalize() {
 	for {
 		select {
 		case res := <-r.results:
 			if res.err != nil {
-				r.errorDist[res.err.Error()]++
+				r.ErrorDist[res.err.Error()]++
 			} else {
-				r.lats = append(r.lats, res.duration.Seconds())
-				r.avgTotal += res.duration.Seconds()
-				r.statusCodeDist[res.statusCode]++
+				r.Lats = append(r.Lats, res.duration.Seconds())
+				r.AvgTotal += res.duration.Seconds()
+				r.StatusCodeDist[res.statusCode]++
 				if res.contentLength > 0 {
-					r.sizeTotal += res.contentLength
+					r.SizeTotal += res.contentLength
 				}
 			}
 		default:
-			r.rps = float64(len(r.lats)) / r.total.Seconds()
-			r.average = r.avgTotal / float64(len(r.lats))
-			sort.Float64s(r.lats)
-			if len(r.lats) > 0 {
-				r.fastest = r.lats[0]
-				r.slowest = r.lats[len(r.lats)-1]
+			r.Rps = float64(len(r.Lats)) / r.Total.Seconds()
+			r.Average = r.AvgTotal / float64(len(r.Lats))
+			sort.Float64s(r.Lats)
+			if len(r.Lats) > 0 {
+				r.Fastest = r.Lats[0]
+				r.Slowest = r.Lats[len(r.Lats)-1]
 			}
 			r.print()
 			return
@@ -81,18 +80,6 @@ func (r *report) finalize() {
 	}
 }
 
-func (r *report) print() {
-	var printer Printer
-
-	if r.output == "csv" {
-		printer = CSVPrinter{
-			Writer: os.Stdout,
-		}
-	} else {
-		printer = DetailedPrinter{
-			Writer: os.Stdout,
-		}
-	}
-
-	printer.Print(*r)
+func (r *Report) print() {
+	r.printer.Print(*r)
 }
