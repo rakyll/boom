@@ -139,3 +139,20 @@ func (d DetailedPrinter) printLatencies() {
 		}
 	}
 }
+
+// ExportPrinter is an implementation of Printer to get Report information after
+// the benchmark is completed. 
+type ExportPrinter struct {
+	Report Report
+}
+
+// Print receives a report and assigns it to exported variable
+func (c *ExportPrinter) Print(r Report) error {
+	c.Report = r
+	return nil
+}
+
+// Returns if it displays the progress bar or not when running the benchmark
+func (c *ExportPrinter) ShouldDisplayProgressBar() bool{
+	return false
+}
