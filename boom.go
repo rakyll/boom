@@ -204,12 +204,18 @@ func main() {
 // <schema>://google.com[:port]
 // <schema>://173.194.116.73[:port]
 // <schema>://\[2a00:1450:400a:806::1007\][:port]
+//
+// However, if a proxy is configured, no DNS resolution is performed ahead of
+// time since typical user agents will allow the proxy to handle DNS resolution.
 func resolveUrl(url string) (string, string) {
 	uri, err := gourl.ParseRequestURI(url)
 	if err != nil {
 		usageAndExit(err.Error())
 	}
 	originalHost := uri.Host
+	if *proxyAddr != "" {
+		return url, originalHost
+	}
 
 	serverName, port, err := net.SplitHostPort(uri.Host)
 	if err != nil {
