@@ -216,11 +216,17 @@ func resolveUrl(url string) (string, string) {
 		serverName = uri.Host
 	}
 
-	addrs, err := defaultDNSResolver.Lookup(serverName)
-	if err != nil {
-		usageAndExit(err.Error())
+	var ip string
+	if net.ParseIP(serverName) != nil {
+		ip = serverName
+	} else {
+		addrs, err := defaultDNSResolver.Lookup(serverName)
+		if err != nil {
+			usageAndExit(err.Error())
+		} else {
+			ip = addrs[0]
+		}
 	}
-	ip := addrs[0]
 	if port != "" {
 		// join automatically puts square brackets around the
 		// ipv6 IPs.
