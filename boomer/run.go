@@ -22,6 +22,9 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"io"
+	"io/ioutil"
 )
 
 // Run makes all the requests, prints the summary. It blocks until
@@ -63,8 +66,10 @@ func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
 		size := int64(0)
 		resp, err := client.Do(req)
 		if err == nil {
-			size = resp.ContentLength
-			code = resp.StatusCode
+			if _, err = io.Copy(ioutil.Discard, resp.Body); err == nil {
+				size = resp.ContentLength
+				code = resp.StatusCode
+			}
 			resp.Body.Close()
 		}
 		if b.bar != nil {
