@@ -220,7 +220,7 @@ func resolveUrl(url string) (string, string) {
 		//println("serverName is ip: ", serverName)
 		addrs = append(addrs, serverName)
 	} else {
-		addrs, err = defaultDnsResolver.Lookup(serverName)
+		addrs, err = defaultDNSResolver.Lookup(serverName)
 		if err != nil {
 			usageAndExit(err.Error())
 		}
