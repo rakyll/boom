@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -22,25 +23,37 @@ import (
 	gourl "net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/rakyll/boom/boomer"
 )
 
-var (
-	flagMethod    = flag.String("m", "GET", "")
-	flagHeaders   = flag.String("h", "", "")
-	flagD         = flag.String("d", "", "")
-	flagType      = flag.String("T", "text/html", "")
-	flagAuth      = flag.String("a", "", "")
-	flagInsecure  = flag.Bool("allow-insecure", false, "")
-	flagOutput    = flag.String("o", "", "")
-	flagProxyAddr = flag.String("x", "", "")
+const (
+	headerRegexp = "^([\\w-]+):\\s*(.+)"
+	authRegexp   = "^([\\w-\\.]+):(.+)"
+)
 
-	flagC = flag.Int("c", 50, "")
-	flagN = flag.Int("n", 200, "")
-	flagQ = flag.Int("q", 0, "")
-	flagT = flag.Int("t", 0, "")
+var (
+	m           = flag.String("m", "GET", "")
+	headers     = flag.String("h", "", "")
+	body        = flag.String("d", "", "")
+	accept      = flag.String("A", "", "")
+	contentType = flag.String("T", "text/html", "")
+	authHeader  = flag.String("a", "", "")
+
+	output = flag.String("o", "", "")
+
+	c    = flag.Int("c", 50, "")
+	n    = flag.Int("n", 200, "")
+	q    = flag.Int("q", 0, "")
+	t    = flag.Int("t", 0, "")
+	cpus = flag.Int("cpus", runtime.GOMAXPROCS(-1), "")
+
+	insecure           = flag.Bool("allow-insecure", false, "")
+	disableCompression = flag.Bool("disable-compression", false, "")
+	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
+	proxyAddr          = flag.String("x", "", "")
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -56,16 +69,22 @@ Options:
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
+  -t  Timeout in ms.
+  -A  HTTP Accept header.
   -d  HTTP request body.
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
-  -x  HTTP Proxy address as host:port
+  -x  HTTP Proxy address as host:port.
 
-  -allow-insecure Allow bad/expired TLS/SSL certificates.
+  -allow-insecure       Allow bad/expired TLS/SSL certificates.
+  -disable-compression  Disable compression.
+  -disable-keepalive    Disable keep-alive, prevents re-use of TCP
+                        connections between different HTTP requests.
+  -cpus                 Number of used cpu cores.
+                        (default for current machine is %d cores)
 `
 
-// Default DNS resolver.
-var defaultDnsResolver dnsResolver = &netDnsResolver{}
+var defaultDNSResolver dnsResolver = &netDNSResolver{}
 
 // DNS resolver interface.
 type dnsResolver interface {
@@ -73,17 +92,17 @@ type dnsResolver interface {
 }
 
 // A DNS resolver based on net.LookupHost.
-type netDnsResolver struct{}
+type netDNSResolver struct{}
 
 // Looks up for the resolved IP addresses of
 // the provided domain.
-func (*netDnsResolver) Lookup(domain string) (addr []string, err error) {
+func (*netDNSResolver) Lookup(domain string) (addr []string, err error) {
 	return net.LookupHost(domain)
 }
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, usage)
+		fmt.Fprint(os.Stderr, fmt.Sprintf(usage, runtime.NumCPU()))
 	}
 
 	flag.Parse()
@@ -91,12 +110,12 @@ func main() {
 		usageAndExit("")
 	}
 
-	n := *flagN
-	c := *flagC
-	q := *flagQ
-	t := *flagT
+	runtime.GOMAXPROCS(*cpus)
+	num := *n
+	conc := *c
+	q := *q
 
-	if n <= 0 || c <= 0 {
+	if num <= 0 || conc <= 0 {
 		usageAndExit("n and c cannot be smaller than 1.")
 	}
 
@@ -108,56 +127,69 @@ func main() {
 		header http.Header = make(http.Header)
 	)
 
-	method = strings.ToUpper(*flagMethod)
+	method = strings.ToUpper(*m)
 	url, originalHost = resolveUrl(flag.Args()[0])
 
 	// set content-type
-	header.Set("Content-Type", *flagType)
+	header.Set("Content-Type", *contentType)
 	// set any other additional headers
-	if *flagHeaders != "" {
-		headers := strings.Split(*flagHeaders, ";")
+	if *headers != "" {
+		headers := strings.Split(*headers, ";")
 		for _, h := range headers {
-			re := regexp.MustCompile("([\\w|-]+):(.+)")
-			matches := re.FindAllStringSubmatch(h, -1)
-			if len(matches) < 1 {
-				usageAndExit("")
+			match, err := parseInputWithRegexp(h, headerRegexp)
+			if err != nil {
+				usageAndExit(err.Error())
 			}
-			header.Set(matches[0][1], matches[0][2])
+			header.Set(match[1], match[2])
 		}
+	}
+
+	if *accept != "" {
+		header.Set("Accept", *accept)
 	}
 
 	// set basic auth if set
-	if *flagAuth != "" {
-		re := regexp.MustCompile("(\\w+):(\\w+)")
-		matches := re.FindAllStringSubmatch(*flagAuth, -1)
-		if len(matches) < 1 {
-			usageAndExit("")
+	if *authHeader != "" {
+		match, err := parseInputWithRegexp(*authHeader, authRegexp)
+		if err != nil {
+			usageAndExit(err.Error())
 		}
-		username = matches[0][1]
-		password = matches[0][2]
+		username, password = match[1], match[2]
 	}
 
-	if *flagOutput != "csv" && *flagOutput != "" {
+	if *output != "csv" && *output != "" {
 		usageAndExit("Invalid output type.")
+	}
+
+	var proxyURL *gourl.URL
+	if *proxyAddr != "" {
+		var err error
+		proxyURL, err = gourl.Parse(*proxyAddr)
+		if err != nil {
+			usageAndExit(err.Error())
+		}
 	}
 
 	(&boomer.Boomer{
 		Req: &boomer.ReqOpts{
 			Method:       method,
-			Url:          url,
-			Body:         *flagD,
+			URL:          url,
+			Body:         *body,
 			Header:       header,
 			Username:     username,
 			Password:     password,
 			OriginalHost: originalHost,
 		},
-		N:             n,
-		C:             c,
-		Qps:           q,
-		Timeout:       t,
-		AllowInsecure: *flagInsecure,
-		Output:        *flagOutput,
-		ProxyAddr:     *flagProxyAddr}).Run()
+		N:                  num,
+		C:                  conc,
+		Qps:                q,
+		Timeout:            *t,
+		AllowInsecure:      *insecure,
+		DisableCompression: *disableCompression,
+		DisableKeepAlives:  *disableKeepAlives,
+		ProxyAddr:          proxyURL,
+		Output:             *output,
+	}).Run()
 }
 
 // Replaces host with an IP and returns the provided
@@ -217,4 +249,13 @@ func usageAndExit(message string) {
 	flag.Usage()
 	fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
+}
+
+func parseInputWithRegexp(input, regx string) (matches []string, err error) {
+	re := regexp.MustCompile(regx)
+	matches = re.FindStringSubmatch(input)
+	if len(matches) < 1 {
+		err = errors.New("Could not parse provided input")
+	}
+	return
 }
