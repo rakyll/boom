@@ -35,7 +35,7 @@ func TestN(t *testing.T) {
 	boomer := &Boomer{
 		Req: &ReqOpts{
 			Method: "GET",
-			Url:    server.URL,
+			URL:    server.URL,
 		},
 		N: 20,
 		C: 2,
@@ -58,7 +58,7 @@ func TestQps(t *testing.T) {
 	boomer := &Boomer{
 		Req: &ReqOpts{
 			Method: "GET",
-			Url:    server.URL,
+			URL:    server.URL,
 		},
 		N:   20,
 		C:   2,
@@ -93,7 +93,7 @@ func TestRequest(t *testing.T) {
 	boomer := &Boomer{
 		Req: &ReqOpts{
 			Method:   "PUT",
-			Url:      server.URL,
+			URL:      server.URL,
 			Header:   header,
 			Username: "username",
 			Password: "password",
@@ -130,7 +130,7 @@ func TestBody(t *testing.T) {
 	boomer := &Boomer{
 		Req: &ReqOpts{
 			Method: "POST",
-			Url:    server.URL,
+			URL:    server.URL,
 			Body:   "Body",
 		},
 		N: 10,
@@ -139,48 +139,5 @@ func TestBody(t *testing.T) {
 	boomer.Run()
 	if count != 10 {
 		t.Errorf("Expected to boom 10 times, found %v", count)
-	}
-}
-
-func TestContentLengthIfExists(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", "20")
-	}
-	server := httptest.NewServer(http.HandlerFunc(handler))
-	defer server.Close()
-
-	boomer := &Boomer{
-		Req: &ReqOpts{
-			Method: "GET",
-			Url:    server.URL,
-		},
-		N: 10,
-		C: 1,
-	}
-	boomer.Run()
-
-	if boomer.rpt.sizeTotal != 200 {
-		t.Errorf("Expected Total Data Received 200 bytes, found %v", boomer.rpt.sizeTotal)
-	}
-}
-
-func TestContentLengthIfDontExists(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-	}
-	server := httptest.NewServer(http.HandlerFunc(handler))
-	defer server.Close()
-
-	boomer := &Boomer{
-		Req: &ReqOpts{
-			Method: "GET",
-			Url:    server.URL,
-		},
-		N: 10,
-		C: 1,
-	}
-	boomer.Run()
-
-	if boomer.rpt.sizeTotal != 0 {
-		t.Errorf("Expected Total Data Received 200 bytes, found %v", boomer.rpt.sizeTotal)
 	}
 }
