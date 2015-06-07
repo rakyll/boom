@@ -26,7 +26,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rakyll/boom/boomer"
+	"github.com/wheelcomplex/boom/boomer"
+	"github.com/wheelcomplex/preinit/misc"
 )
 
 const (
@@ -45,10 +46,10 @@ var (
 	output = flag.String("o", "", "")
 
 	c    = flag.Int("c", 50, "")
-	n    = flag.Int("n", 200, "")
+	n    = flag.String("n", "200", "")
 	q    = flag.Int("q", 0, "")
 	t    = flag.Int("t", 0, "")
-	cpus = flag.Int("cpus", runtime.GOMAXPROCS(-1), "")
+	cpus = flag.Int("cpus", runtime.NumCPU(), "")
 
 	insecure           = flag.Bool("allow-insecure", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
@@ -111,7 +112,11 @@ func main() {
 	}
 
 	runtime.GOMAXPROCS(*cpus)
-	num := *n
+
+	num, err := misc.KMGtoi(*n)
+	if err != nil {
+		usageAndExit(fmt.Sprintf("convert %s to number failed: %s", *n, err.Error()))
+	}
 	conc := *c
 	q := *q
 
@@ -170,6 +175,10 @@ func main() {
 		}
 	}
 
+	// TODO: first connect test
+	// TODO: signel to show result
+	// TODO: time limit switch
+	// TODO: re-work wrk by Go
 	(&boomer.Boomer{
 		Req: &boomer.ReqOpts{
 			Method:       method,
@@ -215,10 +224,15 @@ func resolveUrl(url string) (string, string) {
 	if err != nil {
 		serverName = uri.Host
 	}
-
-	addrs, err := defaultDNSResolver.Lookup(serverName)
-	if err != nil {
-		usageAndExit(err.Error())
+	var addrs []string
+	if net.ParseIP(serverName) != nil {
+		//println("serverName is ip: ", serverName)
+		addrs = append(addrs, serverName)
+	} else {
+		addrs, err = defaultDNSResolver.Lookup(serverName)
+		if err != nil {
+			usageAndExit(err.Error())
+		}
 	}
 	ip := addrs[0]
 	if port != "" {
