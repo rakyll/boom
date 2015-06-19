@@ -85,10 +85,11 @@ func (b *Boomer) run() {
 	var wg sync.WaitGroup
 	wg.Add(b.N)
 
-	var throttle <-chan time.Time
+	var throttle time.Duration
 	if b.Qps > 0 {
-		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
+		throttle = time.Duration(1e9/b.Qps) * time.Nanosecond
 	}
+
 	jobs := make(chan *http.Request, b.N)
 	for i := 0; i < b.C; i++ {
 		go func() {
@@ -97,7 +98,7 @@ func (b *Boomer) run() {
 	}
 	for i := 0; i < b.N; i++ {
 		if b.Qps > 0 {
-			<-throttle
+			time.Sleep(throttle)
 		}
 		jobs <- b.Req.Request()
 	}
