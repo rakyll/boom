@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/rakyll/boom.png?branch=master)](https://travis-ci.org/rakyll/boom)
 
+Message from [rakyll](https://github.com/rakyll) :
+
 Boom is a tiny program that sends some load to a web application. It's similar to Apache Bench ([ab](http://httpd.apache.org/docs/2.2/programs/ab.html)), but with better availability across different platforms and a less troubling installation experience.
 
 Boom is originally written by Tarek Ziade in Python and is available on [tarekziade/boom](https://github.com/tarekziade/boom). But, due to its dependency requirements and my personal annoyance of maintaining concurrent programs in Python, I decided to rewrite it in Go.
@@ -10,7 +12,7 @@ Boom is originally written by Tarek Ziade in Python and is available on [tarekzi
 
 Simple as it takes to type the following command:
 
-    go get github.com/rakyll/boom
+    go get github.com/ncoden/boom
 
 ## Usage
 
@@ -81,6 +83,13 @@ This is what happens when you run Boom:
 
 	Status code distribution:
 	  [200]	1000 responses
+
+## About the fork
+
+Forked from https://github.com/rakyll/boom
+
+The current fork have the following improvment :
+ - CSV output is not sorted, wich allow it to be used with gnuplot
 
 ## License
 
