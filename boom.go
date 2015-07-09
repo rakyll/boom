@@ -43,6 +43,7 @@ var (
 	authHeader  = flag.String("a", "", "")
 
 	output = flag.String("o", "", "")
+	outputFile = flag.String("f", "", "")
 
 	c    = flag.Int("c", 50, "")
 	n    = flag.Int("n", 200, "")
@@ -63,9 +64,10 @@ Options:
   -c  Number of requests to run concurrently. Total number of requests cannot
       be smaller than the concurency level.
   -q  Rate limit, in seconds (QPS).
-  -o  Output type. If none provided, a summary is printed.
-      "csv" is the only supported alternative. Dumps the response
-      metrics in comma-seperated values format.
+
+  -o  Output type for requests times. If none provided or if a output file is
+      given, a summary is printed. "csv" is the only supported type.
+  -f  Output file path. If no output format -o is given, use CSV format.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
@@ -161,6 +163,10 @@ func main() {
 		usageAndExit("Invalid output type.")
 	}
 
+	if *outputFile != "" && *output == "" {
+		*output = "csv"
+	}
+
 	var proxyURL *gourl.URL
 	if *proxyAddr != "" {
 		var err error
@@ -189,6 +195,7 @@ func main() {
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		OutputFile:         *outputFile,
 	}).Run()
 }
 
