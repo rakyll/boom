@@ -1,7 +1,5 @@
 # boom
 
-[![Build Status](https://travis-ci.org/rakyll/boom.png?branch=master)](https://travis-ci.org/rakyll/boom)
-
 Message from [rakyll](https://github.com/rakyll) :
 
 Boom is a tiny program that sends some load to a web application. It's similar to Apache Bench ([ab](http://httpd.apache.org/docs/2.2/programs/ab.html)), but with better availability across different platforms and a less troubling installation experience.
