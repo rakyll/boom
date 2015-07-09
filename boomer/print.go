@@ -78,12 +78,12 @@ func (r *report) finalize() {
 }
 
 func (r *report) print() {
-	sort.Float64s(r.lats)
-
 	if r.output == "csv" {
 		r.printCSV()
 		return
 	}
+
+	sort.Float64s(r.lats)
 
 	if len(r.lats) > 0 {
 		r.fastest = r.lats[0]
