@@ -19,6 +19,7 @@ import (
 
 	"sync"
 
+	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
@@ -65,6 +66,7 @@ func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
 		if err == nil {
 			size = resp.ContentLength
 			code = resp.StatusCode
+			ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 		}
 		if b.bar != nil {
