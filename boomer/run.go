@@ -55,7 +55,7 @@ func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
 		TLSHandshakeTimeout: time.Duration(b.Timeout) * time.Millisecond,
 		Proxy:               http.ProxyURL(b.ProxyAddr),
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{Transport: tr, Jar: b.Req.CookieeJar}
 	_ = client
 	for req := range ch {
 		s := time.Now()
