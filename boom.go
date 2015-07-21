@@ -26,7 +26,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rakyll/boom/boomer"
+	"github.com/sdbaiguanghe/boom/boomer"
 )
 
 const (
@@ -66,6 +66,7 @@ Options:
   -o  Output type. If none provided, a summary is printed.
       "csv" is the only supported alternative. Dumps the response
       metrics in comma-seperated values format.
+  -C  Add cookie for each request, eg.'user=gopher;sid=1234'.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
@@ -100,6 +101,9 @@ func (*netDNSResolver) Lookup(domain string) (addr []string, err error) {
 	return net.LookupHost(domain)
 }
 
+func init() {
+	flag.Var(&cookieeJar, "C", "")
+}
 func main() {
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(usage, runtime.NumCPU()))
@@ -179,6 +183,7 @@ func main() {
 			Username:     username,
 			Password:     password,
 			OriginalHost: originalHost,
+			CookieeJar:   cookieeJar,
 		},
 		N:                  num,
 		C:                  conc,

@@ -26,6 +26,7 @@ Options:
   -o  Output type. If none provided, a summary is printed.
       "csv" is the only supported alternative. Dumps the response
       metrics in comma-seperated values format.
+  -C  Add cookie for each request, eg.'user=gopher;sid=1234'.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.

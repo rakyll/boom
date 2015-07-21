@@ -42,6 +42,7 @@ type ReqOpts struct {
 	// Request host is an resolved IP. TLS/SSL handshakes may require
 	// the original server name, keep it to initate the TLS client.
 	OriginalHost string
+	CookieeJar   http.CookieJar
 }
 
 // Creates a req object from req options
