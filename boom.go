@@ -134,7 +134,7 @@ func main() {
 	header.Set("Content-Type", *contentType)
 	// set any other additional headers
 	if *headers != "" {
-		headers := strings.Split(*headers, ";")
+		headers := strings.Split(*headers, "|")
 		for _, h := range headers {
 			match, err := parseInputWithRegexp(h, headerRegexp)
 			if err != nil {
