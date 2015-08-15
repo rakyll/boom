@@ -82,13 +82,6 @@ This is what happens when you run Boom:
 	Status code distribution:
 	  [200]	1000 responses
 
-## About the fork
-
-Forked from https://github.com/rakyll/boom
-
-The current fork have the following improvment :
- - CSV output is not sorted, wich allow it to be used with gnuplot
-
 ## License
 
 Copyright 2014 Google Inc. All Rights Reserved.
