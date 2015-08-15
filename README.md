@@ -1,6 +1,6 @@
 # boom
 
-Message from [rakyll](https://github.com/rakyll) :
+[![Build Status](https://travis-ci.org/rakyll/boom.png?branch=master)](https://travis-ci.org/rakyll/boom)
 
 Boom is a tiny program that sends some load to a web application. It's similar to Apache Bench ([ab](http://httpd.apache.org/docs/2.2/programs/ab.html)), but with better availability across different platforms and a less troubling installation experience.
 
@@ -10,7 +10,7 @@ Boom is originally written by Tarek Ziade in Python and is available on [tarekzi
 
 Simple as it takes to type the following command:
 
-    go get github.com/ncoden/boom
+    go get github.com/rakyll/boom
 
 ## Usage
 

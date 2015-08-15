@@ -26,7 +26,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ncoden/boom/boomer"
+	"github.com/rakyll/boom/boomer"
 )
 
 const (
