@@ -66,10 +66,9 @@ func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
 		size := int64(0)
 		resp, err := client.Do(req)
 		if err == nil {
-			if _, err = io.Copy(ioutil.Discard, resp.Body); err == nil {
-				size = resp.ContentLength
-				code = resp.StatusCode
-			}
+			size = resp.ContentLength
+			code = resp.StatusCode
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 		if b.bar != nil {
