@@ -25,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rakyll/boom/boomer"
+	"github.com/espebra/boom/boomer"
 )
 
 const (
@@ -40,6 +40,7 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
+	hostHeader  = flag.String("H", "", "")
 
 	output = flag.String("o", "", "")
 
@@ -68,6 +69,7 @@ Options:
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
+  -H  Custom HTTP host header.
   -t  Timeout in ms.
   -A  HTTP Accept header.
   -d  HTTP request body.
@@ -159,6 +161,7 @@ func main() {
 			URL:      url,
 			Body:     *body,
 			Header:   header,
+			Host:     *hostHeader,
 			Username: username,
 			Password: password,
 		},

@@ -76,11 +76,12 @@ func TestQps(t *testing.T) {
 }
 
 func TestRequest(t *testing.T) {
-	var uri, contentType, some, method, auth string
+	var uri, contentType, some, method, auth, host string
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		uri = r.RequestURI
 		method = r.Method
 		contentType = r.Header.Get("Content-type")
+		host = r.Host
 		some = r.Header.Get("X-some")
 		auth = r.Header.Get("Authorization")
 	}
@@ -95,6 +96,7 @@ func TestRequest(t *testing.T) {
 			Method:   "PUT",
 			URL:      server.URL,
 			Header:   header,
+			Host:     "example.com",
 			Username: "username",
 			Password: "password",
 		},
@@ -113,6 +115,9 @@ func TestRequest(t *testing.T) {
 	}
 	if auth != "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" {
 		t.Errorf("Basic authorization is not properly set")
+	}
+	if host != "example.com" {
+		t.Errorf("Host header is not properly set")
 	}
 }
 
