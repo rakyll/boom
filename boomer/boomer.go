@@ -35,6 +35,7 @@ type ReqOpts struct {
 	Method   string
 	URL      string
 	Header   http.Header
+	Host     string
 	Body     string
 	Username string
 	Password string
@@ -44,6 +45,9 @@ type ReqOpts struct {
 func (r *ReqOpts) Request() *http.Request {
 	req, _ := http.NewRequest(r.Method, r.URL, strings.NewReader(r.Body))
 	req.Header = r.Header
+	if r.Host != "" {
+		req.Host = r.Host
+	}
 	if r.Username != "" && r.Password != "" {
 		req.SetBasicAuth(r.Username, r.Password)
 	}
