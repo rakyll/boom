@@ -16,6 +16,8 @@ package boomer
 
 import (
 	"crypto/tls"
+	"io"
+	"io/ioutil"
 
 	"sync"
 
@@ -61,6 +63,7 @@ func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
 		if err == nil {
 			size = resp.ContentLength
 			code = resp.StatusCode
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 		if b.bar != nil {
