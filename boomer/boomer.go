@@ -31,6 +31,10 @@ type result struct {
 	contentLength int64
 }
 
+type RequestBuilder interface {
+	Request() *http.Request
+}
+
 type ReqOpts struct {
 	Method   string
 	URL      string
@@ -53,7 +57,7 @@ func (r *ReqOpts) Request() *http.Request {
 type Boomer struct {
 	// Req represents the options of the request to be made.
 	// TODO(jbd): Make it work with an http.Request instead.
-	Req *ReqOpts
+	Req RequestBuilder
 
 	// N is the total number of requests to make.
 	N int
