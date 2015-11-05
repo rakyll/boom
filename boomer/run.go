@@ -31,17 +31,17 @@ var client *http.Client
 // all work is done.
 func (b *Boomer) Run() {
 	b.results = make(chan *result, b.N)
-	if b.Output == "" {
+	if (b.Output == "" || b.OutputFile != "") {
 		b.bar = newPb(b.N)
 	}
 
 	start := time.Now()
 	b.run()
-	if b.Output == "" {
+	if (b.Output == "" || b.OutputFile != "") {
 		b.bar.Finish()
 	}
 
-	printReport(b.N, b.results, b.Output, time.Now().Sub(start))
+	printReport(b.N, b.results, b.Output, b.OutputFile, time.Now().Sub(start))
 	close(b.results)
 }
 

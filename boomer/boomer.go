@@ -81,6 +81,10 @@ type Boomer struct {
 	// output will be dumped as a csv stream.
 	Output string
 
+	// OutputFile is the Output destination file. If none is provided,
+	// the output will be print on standard input, instead of the summary.
+	OutputFile string
+
 	// ProxyAddr is the address of HTTP proxy server in the format on "host:port".
 	// Optional.
 	ProxyAddr *url.URL

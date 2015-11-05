@@ -16,6 +16,7 @@ package boomer
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -40,12 +41,14 @@ type report struct {
 	lats           []float64
 	sizeTotal      int64
 
-	output string
+	output     string
+	outputFile string
 }
 
-func printReport(size int, results chan *result, output string, total time.Duration) {
+func printReport(size int, results chan *result, output string, outputFile string, total time.Duration) {
 	r := &report{
 		output:         output,
+		outputFile:		outputFile,
 		results:        results,
 		total:          total,
 		statusCodeDist: make(map[int]int),
@@ -78,12 +81,14 @@ func (r *report) finalize() {
 }
 
 func (r *report) print() {
-	sort.Float64s(r.lats)
-
 	if r.output == "csv" {
 		r.printCSV()
-		return
+		if r.outputFile == "" {
+			return
+		}
 	}
+
+	sort.Float64s(r.lats)
 
 	if len(r.lats) > 0 {
 		r.fastest = r.lats[0]
@@ -109,8 +114,25 @@ func (r *report) print() {
 }
 
 func (r *report) printCSV() {
-	for i, val := range r.lats {
-		fmt.Printf("%v,%4.4f\n", i+1, val)
+	if (r.outputFile != "") {
+		// If output file given
+		// Create file
+		f, err := os.Create(r.outputFile)
+
+		// Print in
+		if (err == nil) {
+			for i, val := range r.lats {
+				fmt.Fprintf(f, "%v,%4.4f\n", i+1, val)
+			}
+			f.Close()
+		} else {
+			fmt.Print("Error: Unable to create output file\n")
+		}
+	} else {
+		// Else, print to standart input
+		for i, val := range r.lats {
+			fmt.Printf("%v,%4.4f\n", i+1, val)
+		}
 	}
 }
 
