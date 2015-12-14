@@ -16,7 +16,7 @@
 package boomer
 
 import (
-	"fmt"
+	//	"fmt"
 	"github.com/rakyll/pb"
 	"net/http"
 	"net/url"
@@ -42,7 +42,6 @@ type ReqOpts struct {
 
 // Creates a req object from req options
 func (r *ReqOpts) Request() *http.Request {
-	fmt.Printf("Method %v,Url %v,body %v", r.Method, r.URL, strings.NewReader(r.Body))
 	req, _ := http.NewRequest(r.Method, r.URL, strings.NewReader(r.Body))
 	req.Header = r.Header
 	if r.Username != "" && r.Password != "" {
