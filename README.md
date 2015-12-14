@@ -42,6 +42,8 @@ Options:
                         connections between different HTTP requests.
   -cpus                 Number of used cpu cores.
                         (default for current machine is 1 cores)
+  -cert cert path   
+  -key  key path
 ~~~
 
 This is what happens when you run Boom:
