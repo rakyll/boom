@@ -16,10 +16,12 @@ package boomer
 
 import (
 	"crypto/tls"
+	"log"
 
 	"sync"
 
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -42,10 +44,26 @@ func (b *Boomer) Run() {
 }
 
 func (b *Boomer) worker(wg *sync.WaitGroup, ch chan *http.Request) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
+
+	tlsConfig := &tls.Config{}
+
+	if b.Cert != "" && b.Key != "" {
+		cert := filepath.Join("", b.Cert)
+		key := filepath.Join("", b.Key)
+		tlsCert, err := tls.LoadX509KeyPair(cert, key)
+
+		if err != nil {
+			log.Fatalf("Failed to load cert")
+		}
+
+		tlsConfig = &tls.Config{
+			Certificates:       []tls.Certificate{tlsCert},
 			InsecureSkipVerify: b.AllowInsecure,
-		},
+		}
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig:    tlsConfig,
 		DisableCompression: b.DisableCompression,
 		DisableKeepAlives:  b.DisableKeepAlives,
 		// TODO(jbd): Add dial timeout.

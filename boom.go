@@ -53,6 +53,9 @@ var (
 	disableCompression = flag.Bool("disable-compression", false, "")
 	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
 	proxyAddr          = flag.String("x", "", "")
+
+	cert = flag.String("cert", "", "")
+	key  = flag.String("key", "", "")
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -81,6 +84,8 @@ Options:
                         connections between different HTTP requests.
   -cpus                 Number of used cpu cores.
                         (default for current machine is %d cores)
+  -key   key.pem path    
+  -cert  cert.pem path 
 `
 
 func main() {
@@ -171,6 +176,8 @@ func main() {
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		Cert:               *cert,
+		Key:                *key,
 	}).Run()
 }
 
