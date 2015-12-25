@@ -35,6 +35,7 @@ type result struct {
 	statusCode    int
 	duration      time.Duration
 	contentLength int64
+	cipher        *uint16
 }
 
 type Boomer struct {
@@ -142,11 +143,15 @@ func (b *Boomer) runWorker(wg *sync.WaitGroup, ch chan *http.Request) {
 
 		var code int
 		var size int64
+		var cipher *uint16
 
 		resp, err := client.Do(req)
 		if err == nil {
 			size = resp.ContentLength
 			code = resp.StatusCode
+			if resp.TLS != nil {
+				cipher = &resp.TLS.CipherSuite
+			}
 			if b.ReadAll {
 				_, err = io.Copy(ioutil.Discard, resp.Body)
 			}
@@ -160,6 +165,7 @@ func (b *Boomer) runWorker(wg *sync.WaitGroup, ch chan *http.Request) {
 			duration:      time.Now().Sub(s),
 			err:           err,
 			contentLength: size,
+			cipher:        cipher,
 		}
 	}
 }

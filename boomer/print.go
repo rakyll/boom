@@ -41,6 +41,8 @@ type report struct {
 	sizeTotal      int64
 
 	output string
+
+	cipherUsed string
 }
 
 func newReport(size int, results chan *result, output string, total time.Duration) *report {
@@ -57,6 +59,11 @@ func (r *report) finalize() {
 	for {
 		select {
 		case res := <-r.results:
+			if res.cipher != nil {
+				r.cipherUsed = CipherName(*res.cipher)
+			} else {
+				r.cipherUsed = "-"
+			}
 			if res.err != nil {
 				r.errorDist[res.err.Error()]++
 			} else {
@@ -88,6 +95,7 @@ func (r *report) print() {
 		r.fastest = r.lats[0]
 		r.slowest = r.lats[len(r.lats)-1]
 		fmt.Printf("\nSummary:\n")
+		fmt.Printf("  TLS cipher:\t%v\n", r.cipherUsed)
 		fmt.Printf("  Total:\t%4.4f secs.\n", r.total.Seconds())
 		fmt.Printf("  Slowest:\t%4.4f secs.\n", r.slowest)
 		fmt.Printf("  Fastest:\t%4.4f secs.\n", r.fastest)
