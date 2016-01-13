@@ -20,6 +20,7 @@ import (
 	"net/http"
 	gourl "net/url"
 	"os"
+	"os/signal"
 	"regexp"
 	"runtime"
 	"strings"
@@ -163,7 +164,7 @@ func main() {
 		req.SetBasicAuth(username, password)
 	}
 
-	(&boomer.Boomer{
+	b := &boomer.Boomer{
 		Request:            req,
 		RequestBody:        *body,
 		N:                  num,
@@ -176,7 +177,13 @@ func main() {
 		ProxyAddr:          proxyURL,
 		Output:             *output,
 		ReadAll:            *readAll,
-	}).Run()
+	}
+
+	select {
+	case <-runAsync(b):
+	case <-sysExit():
+	}
+
 }
 
 func usageAndExit(msg string) {
@@ -196,4 +203,19 @@ func parseInputWithRegexp(input, regx string) ([]string, error) {
 		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
 	}
 	return matches, nil
+}
+
+func runAsync(boomer *boomer.Boomer) <-chan bool {
+	finished := make(chan bool, 1)
+	go func() {
+		boomer.Run()
+		finished <- true
+	}()
+	return finished
+}
+
+func sysExit() <-chan os.Signal {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	return ch
 }
