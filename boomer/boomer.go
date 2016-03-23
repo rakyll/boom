@@ -47,7 +47,7 @@ type Boomer struct {
 	// C is the concurrency level, the number of concurrent workers to run.
 	C int
 
-	// Timeout in seconds.
+	// Timeout in milliseconds.
 	Timeout int
 
 	// Qps is the rate limit.
@@ -128,6 +128,7 @@ func (b *Boomer) runWorker(n int) {
 		Proxy:               http.ProxyURL(b.ProxyAddr),
 	}
 	client := &http.Client{Transport: tr}
+	client.Timeout = time.Duration(b.Timeout) * time.Millisecond
 	for i := 0; i < n; i++ {
 		if b.Qps > 0 {
 			<-throttle
