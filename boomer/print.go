@@ -96,6 +96,7 @@ func (r *report) print() {
 		if r.sizeTotal > 0 {
 			fmt.Printf("  Total data:\t%d bytes\n", r.sizeTotal)
 			fmt.Printf("  Size/request:\t%d bytes\n", r.sizeTotal/int64(len(r.lats)))
+			fmt.Printf("  Bytes/sec:\t%d\n", (r.sizeTotal*1e9)/int64(r.total.Nanoseconds()))
 		}
 		r.printStatusCodes()
 		r.printHistogram()
