@@ -28,7 +28,8 @@ Options:
       metrics in comma-seperated values format.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
-  -h  Custom HTTP headers, name1:value1;name2:value2.
+  -H  Custom HTTP header. You can specify as many as needed by repeating the flag.
+      for example, -H "Accept: text/html" -H "Content-Type: application/xml" .
   -t  Timeout in ms.
   -A  HTTP Accept header.
   -d  HTTP request body.
@@ -36,6 +37,7 @@ Options:
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
 
+  -readall              Consumes the entire request body.
   -allow-insecure       Allow bad/expired TLS/SSL certificates.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP

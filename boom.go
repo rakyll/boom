@@ -15,11 +15,9 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	gourl "net/url"
 	"os"
@@ -31,11 +29,23 @@ import (
 )
 
 const (
-	headerRegexp = "^([\\w-]+):\\s*(.+)"
-	authRegexp   = "^([\\w-\\.]+):(.+)"
+	headerRegexp = `^([\w-]+):\s*(.+)`
+	authRegexp   = `^(.+):([^\s].+)`
 )
 
+type headerSlice []string
+
+func (h *headerSlice) String() string {
+	return fmt.Sprintf("%s", *h)
+}
+
+func (h *headerSlice) Set(value string) error {
+	*h = append(*h, value)
+	return nil
+}
+
 var (
+	headerslice headerSlice
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("d", "", "")
@@ -51,7 +61,6 @@ var (
 	t    = flag.Int("t", 0, "")
 	cpus = flag.Int("cpus", runtime.GOMAXPROCS(-1), "")
 
-	insecure           = flag.Bool("allow-insecure", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
 	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
 	proxyAddr          = flag.String("x", "", "")
@@ -69,7 +78,8 @@ Options:
       metrics in comma-seperated values format.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
-  -h  Custom HTTP headers, name1:value1;name2:value2.
+  -H  Custom HTTP header. You can specify as many as needed by repeating the flag.
+      for example, -H "Accept: text/html" -H "Content-Type: application/xml" .
   -t  Timeout in ms.
   -A  HTTP Accept header.
   -d  HTTP request body. If you start the data with the letter @, the rest should be a file name to read the data from.
@@ -77,7 +87,6 @@ Options:
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
 
-  -allow-insecure       Allow bad/expired TLS/SSL certificates.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
                         connections between different HTTP requests.
@@ -85,26 +94,12 @@ Options:
                         (default for current machine is %d cores)
 `
 
-var defaultDNSResolver dnsResolver = &netDNSResolver{}
-
-// DNS resolver interface.
-type dnsResolver interface {
-	Lookup(domain string) (addr []string, err error)
-}
-
-// A DNS resolver based on net.LookupHost.
-type netDNSResolver struct{}
-
-// Looks up for the resolved IP addresses of
-// the provided domain.
-func (*netDNSResolver) Lookup(domain string) (addr []string, err error) {
-	return net.LookupHost(domain)
-}
-
 func main() {
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(usage, runtime.NumCPU()))
 	}
+
+	flag.Var(&headerslice, "H", "")
 
 	flag.Parse()
 	if flag.NArg() < 1 {
@@ -120,29 +115,23 @@ func main() {
 		usageAndExit("n and c cannot be smaller than 1.")
 	}
 
-	var (
-		url, method, originalHost string
-		// Username and password for basic auth
-		username, password string
-		// request headers
-		header http.Header = make(http.Header)
-	)
-
-	method = strings.ToUpper(*m)
-	url, originalHost = resolveUrl(flag.Args()[0])
+	url := flag.Args()[0]
+	method := strings.ToUpper(*m)
 
 	// set content-type
+	header := make(http.Header)
 	header.Set("Content-Type", *contentType)
 	// set any other additional headers
 	if *headers != "" {
-		headers := strings.Split(*headers, ";")
-		for _, h := range headers {
-			match, err := parseInputWithRegexp(h, headerRegexp)
-			if err != nil {
-				usageAndExit(err.Error())
-			}
-			header.Set(match[1], match[2])
+		usageAndExit("flag '-h' is deprecated, please use '-H' instead.")
+	}
+	// set any other additional repeatable headers
+	for _, h := range headerslice {
+		match, err := parseInputWithRegexp(h, headerRegexp)
+		if err != nil {
+			usageAndExit(err.Error())
 		}
+		header.Set(match[1], match[2])
 	}
 
 	if *accept != "" {
@@ -150,6 +139,7 @@ func main() {
 	}
 
 	// set basic auth if set
+	var username, password string
 	if *authHeader != "" {
 		match, err := parseInputWithRegexp(*authHeader, authRegexp)
 		if err != nil {
@@ -159,7 +149,7 @@ func main() {
 	}
 
 	if *output != "csv" && *output != "" {
-		usageAndExit("Invalid output type.")
+		usageAndExit("Invalid output type; only csv is supported.")
 	}
 
 	var proxyURL *gourl.URL
@@ -171,26 +161,23 @@ func main() {
 		}
 	}
 
+	req, err := http.NewRequest(method, url, nil)
 	reqBody, err := parseReqBody(*body)
 	if err != nil {
 		usageAndExit(err.Error())
 	}
+	req.Header = header
+	if username != "" || password != "" {
+		req.SetBasicAuth(username, password)
+	}
 
 	(&boomer.Boomer{
-		Req: &boomer.ReqOpts{
-			Method:       method,
-			URL:          url,
-			Body:         reqBody,
-			Header:       header,
-			Username:     username,
-			Password:     password,
-			OriginalHost: originalHost,
-		},
+		Request:            req,
+		RequestBody:        reqBody,
 		N:                  num,
 		C:                  conc,
 		Qps:                q,
 		Timeout:            *t,
-		AllowInsecure:      *insecure,
 		DisableCompression: *disableCompression,
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
@@ -198,53 +185,9 @@ func main() {
 	}).Run()
 }
 
-// Replaces host with an IP and returns the provided
-// string URL as a *url.URL.
-//
-// DNS lookups are not cached in the package level in Go,
-// and it's a huge overhead to resolve a host
-// before each request in our case. Instead we resolve
-// the domain and replace it with the resolved IP to avoid
-// lookups during request time. Supported url strings:
-//
-// <schema>://google.com[:port]
-// <schema>://173.194.116.73[:port]
-// <schema>://\[2a00:1450:400a:806::1007\][:port]
-func resolveUrl(url string) (string, string) {
-	uri, err := gourl.ParseRequestURI(url)
-	if err != nil {
-		usageAndExit(err.Error())
-	}
-	originalHost := uri.Host
-
-	serverName, port, err := net.SplitHostPort(uri.Host)
-	if err != nil {
-		serverName = uri.Host
-	}
-
-	addrs, err := defaultDNSResolver.Lookup(serverName)
-	if err != nil {
-		usageAndExit(err.Error())
-	}
-	ip := addrs[0]
-	if port != "" {
-		// join automatically puts square brackets around the
-		// ipv6 IPs.
-		uri.Host = net.JoinHostPort(ip, port)
-	} else {
-		uri.Host = ip
-		// square brackets are required for ipv6 IPs.
-		// otherwise, net.Dial fails with a parsing error.
-		if strings.Contains(ip, ":") {
-			uri.Host = fmt.Sprintf("[%s]", ip)
-		}
-	}
-	return uri.String(), originalHost
-}
-
-func usageAndExit(message string) {
-	if message != "" {
-		fmt.Fprintf(os.Stderr, message)
+func usageAndExit(msg string) {
+	if msg != "" {
+		fmt.Fprintf(os.Stderr, msg)
 		fmt.Fprintf(os.Stderr, "\n\n")
 	}
 	flag.Usage()
@@ -252,13 +195,13 @@ func usageAndExit(message string) {
 	os.Exit(1)
 }
 
-func parseInputWithRegexp(input, regx string) (matches []string, err error) {
+func parseInputWithRegexp(input, regx string) ([]string, error) {
 	re := regexp.MustCompile(regx)
-	matches = re.FindStringSubmatch(input)
+	matches := re.FindStringSubmatch(input)
 	if len(matches) < 1 {
-		err = errors.New("Could not parse provided input")
+		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
 	}
-	return
+	return matches, nil
 }
 
 func parseReqBody(arg string) (string, error) {
