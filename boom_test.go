@@ -15,6 +15,8 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -49,6 +51,51 @@ func TestParseInvalidAuthFlag(t *testing.T) {
 	_, err := parseInputWithRegexp("X|oh|bad-input: badbadbad", authRegexp)
 	if err == nil {
 		t.Errorf("An invalid header passed parsing")
+	}
+}
+
+func TestParseReqBodyEmptyString(t *testing.T) {
+	body, err := parseReqBody("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if body != "" {
+		t.Fatalf("expected empty string but got %s instead", body)
+	}
+}
+
+func TestParseReqBodyContents(t *testing.T) {
+	expected := "{}"
+	actual, err := parseReqBody(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != expected {
+		t.Fatalf("expected %s but got %s instead", expected, actual)
+	}
+}
+
+func TestParseReqBodyFromFile(t *testing.T) {
+	f, err := ioutil.TempFile(os.TempDir(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "{}"
+	if err := ioutil.WriteFile(f.Name(), []byte(expected), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	actual, err := parseReqBody("@" + f.Name())
+	if actual != expected {
+		t.Fatalf("expected %s but got %s instead", expected, actual)
+	}
+}
+
+func TestParseReqBodyNoFile(t *testing.T) {
+	if _, err := parseReqBody("@"); err == nil {
+		t.Fatal("expected error")
 	}
 }
 

@@ -35,6 +35,7 @@ type result struct {
 	contentLength int64
 }
 
+// Boomer holds request and output data.
 type Boomer struct {
 	// Request is the request to be made.
 	Request *http.Request
