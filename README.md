@@ -39,6 +39,9 @@ Options:
 
   -readall              Consumes the entire request body.
   -allow-insecure       Allow bad/expired TLS/SSL certificates.
+
+  -cert  SSL client certificate.
+  -key   SSL client private key.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
                         connections between different HTTP requests.
