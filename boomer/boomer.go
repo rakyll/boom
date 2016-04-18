@@ -68,7 +68,7 @@ type Boomer struct {
 	ProxyAddr *url.URL
 
 	// Certificate is the client certificate used to establish a TLS connection (if present).
-	Certificate *tls.Certificate
+	Certificate tls.Certificate
 
 	results chan *result
 }
