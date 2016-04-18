@@ -67,6 +67,9 @@ type Boomer struct {
 	// Optional.
 	ProxyAddr *url.URL
 
+	// Certificate is the client certificate used to establish a TLS connection (if present).
+	Certificate *tls.Certificate
+
 	results chan *result
 }
 
@@ -120,6 +123,7 @@ func (b *Boomer) runWorker(n int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
+			Certificates: []tls.Certificate{b.Certificate},
 		},
 		DisableCompression: b.DisableCompression,
 		DisableKeepAlives:  b.DisableKeepAlives,
