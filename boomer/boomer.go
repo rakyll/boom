@@ -68,6 +68,9 @@ type Boomer struct {
 	ProxyAddr *url.URL
 
 	results chan *result
+
+	// Tls is the TLS configuration to use for the requests.
+	Tls *tls.Config
 }
 
 // Run makes all the requests, prints the summary. It blocks until
@@ -118,9 +121,7 @@ func (b *Boomer) runWorker(n int) {
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
+		TLSClientConfig:    b.Tls,
 		DisableCompression: b.DisableCompression,
 		DisableKeepAlives:  b.DisableKeepAlives,
 		// TODO(jbd): Add dial timeout.
