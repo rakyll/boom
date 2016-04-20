@@ -55,19 +55,23 @@ func TestParseInvalidAuthFlag(t *testing.T) {
 }
 
 func TestParseReqBodyEmptyString(t *testing.T) {
-	body, err := parseReqBody("")
-	if err != nil {
+	if _, err := parseReqBody(""); err == nil {
 		t.Fatal(err)
-	}
-
-	if body != "" {
-		t.Fatalf("expected empty string but got %s instead", body)
 	}
 }
 
 func TestParseReqBodyContents(t *testing.T) {
 	expected := "{}"
-	actual, err := parseReqBody(expected)
+	tmpfile, err := ioutil.TempFile(os.TempDir(), "boomtest_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	if _, err := tmpfile.Write([]byte(expected)); err != nil {
+		t.Fatal(err)
+	}
+
+	actual, err := parseReqBody(tmpfile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,15 +91,9 @@ func TestParseReqBodyFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual, err := parseReqBody("@" + f.Name())
+	actual, err := parseReqBody(f.Name())
 	if actual != expected {
 		t.Fatalf("expected %s but got %s instead", expected, actual)
-	}
-}
-
-func TestParseReqBodyNoFile(t *testing.T) {
-	if _, err := parseReqBody("@"); err == nil {
-		t.Fatal("expected error")
 	}
 }
 

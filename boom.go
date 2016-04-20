@@ -49,6 +49,7 @@ var (
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("d", "", "")
+	file        = flag.String("f", "", "")
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
@@ -82,7 +83,8 @@ Options:
       for example, -H "Accept: text/html" -H "Content-Type: application/xml" .
   -t  Timeout in ms.
   -A  HTTP Accept header.
-  -d  HTTP request body. If you start the data with the letter @, the rest should be a file name to read the data from.
+  -d  HTTP request body. 
+  -f  File containing request data.
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
@@ -162,10 +164,18 @@ func main() {
 	}
 
 	req, err := http.NewRequest(method, url, nil)
-	reqBody, err := parseReqBody(*body)
 	if err != nil {
 		usageAndExit(err.Error())
 	}
+
+	reqBody := *body
+	if reqBody == "" {
+		reqBody, err = parseReqBody(*file)
+		if err != nil {
+			usageAndExit(err.Error())
+		}
+	}
+
 	req.Header = header
 	if username != "" || password != "" {
 		req.SetBasicAuth(username, password)
@@ -204,12 +214,8 @@ func parseInputWithRegexp(input, regx string) ([]string, error) {
 	return matches, nil
 }
 
-func parseReqBody(arg string) (string, error) {
-	if arg == "" || arg[0] != '@' {
-		return arg, nil
-	}
-
-	contents, err := ioutil.ReadFile(arg[1:])
+func parseReqBody(filename string) (string, error) {
+	contents, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", err
 	}
