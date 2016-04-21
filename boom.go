@@ -15,11 +15,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	gourl "net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -60,6 +62,9 @@ var (
 	t    = flag.Int("t", 0, "")
 	cpus = flag.Int("cpus", runtime.GOMAXPROCS(-1), "")
 
+	cert = flag.String("cert", "", "")
+	key  = flag.String("key", "", "")
+
 	disableCompression = flag.Bool("disable-compression", false, "")
 	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
 	proxyAddr          = flag.String("x", "", "")
@@ -85,6 +90,9 @@ Options:
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
+
+  -cert  SSL client certificate.
+  -key   SSL client private key.
 
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
@@ -160,6 +168,15 @@ func main() {
 		}
 	}
 
+	var tlsCert tls.Certificate
+	if *cert != "" && *key != "" {
+		var err error
+		tlsCert, err = tls.LoadX509KeyPair(filepath.Clean(*cert), filepath.Clean(*key))
+		if err != nil {
+			usageAndExit(err.Error())
+		}
+	}
+
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		usageAndExit(err.Error())
@@ -180,6 +197,7 @@ func main() {
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		Certificate:        tlsCert,
 	}).Run()
 }
 
