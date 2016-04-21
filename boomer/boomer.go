@@ -123,7 +123,7 @@ func (b *Boomer) runWorker(n int) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
-			Certificates: []tls.Certificate{b.Certificate},
+			Certificates:       []tls.Certificate{b.Certificate},
 		},
 		DisableCompression: b.DisableCompression,
 		DisableKeepAlives:  b.DisableKeepAlives,

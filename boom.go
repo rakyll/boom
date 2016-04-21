@@ -15,17 +15,17 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	gourl "net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 
-	"crypto/tls"
-	"path/filepath"
 	"github.com/rakyll/boom/boomer"
 )
 
@@ -171,7 +171,7 @@ func main() {
 	var tlsCert tls.Certificate
 	if *cert != "" && *key != "" {
 		var err error
-		tlsCert, err = tls.LoadX509KeyPair(filepath.Join("", *cert), filepath.Join("", *key))
+		tlsCert, err = tls.LoadX509KeyPair(filepath.Clean(*cert), filepath.Clean(*key))
 		if err != nil {
 			usageAndExit(err.Error())
 		}
@@ -197,7 +197,7 @@ func main() {
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
-		Certificate: 		tlsCert,
+		Certificate:        tlsCert,
 	}).Run()
 }
 
