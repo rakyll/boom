@@ -25,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/espebra/boom/boomer"
+	"github.com/rakyll/boom/boomer"
 )
 
 const (
