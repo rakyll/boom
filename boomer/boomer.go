@@ -111,28 +111,17 @@ func (b *Boomer) makeRequest(c *http.Client) {
 	}
 }
 
-func (b *Boomer) runWorker(n int) {
+func (b *Boomer) runWorker(c *http.Client, n int) {
 	var throttle <-chan time.Time
 	if b.Qps > 0 {
 		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-		DisableCompression: b.DisableCompression,
-		DisableKeepAlives:  b.DisableKeepAlives,
-		// TODO(jbd): Add dial timeout.
-		TLSHandshakeTimeout: time.Duration(b.Timeout) * time.Millisecond,
-		Proxy:               http.ProxyURL(b.ProxyAddr),
-	}
-	client := &http.Client{Transport: tr}
 	for i := 0; i < n; i++ {
 		if b.Qps > 0 {
 			<-throttle
 		}
-		b.makeRequest(client)
+		b.makeRequest(c)
 	}
 }
 
@@ -140,10 +129,23 @@ func (b *Boomer) runWorkers() {
 	var wg sync.WaitGroup
 	wg.Add(b.C)
 
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		MaxIdleConnsPerHost: b.C,
+		DisableCompression:  b.DisableCompression,
+		DisableKeepAlives:   b.DisableKeepAlives,
+		// TODO(jbd): Add dial timeout.
+		TLSHandshakeTimeout: time.Duration(b.Timeout) * time.Millisecond,
+		Proxy:               http.ProxyURL(b.ProxyAddr),
+	}
+	client := &http.Client{Transport: tr}
+
 	// Ignore the case where b.N % b.C != 0.
 	for i := 0; i < b.C; i++ {
 		go func() {
-			b.runWorker(b.N / b.C)
+			b.runWorker(client, b.N/b.C)
 			wg.Done()
 		}()
 	}
