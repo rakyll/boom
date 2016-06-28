@@ -24,7 +24,11 @@ import (
 	"runtime"
 	"strings"
 
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"github.com/rakyll/boom/boomer"
+	"io/ioutil"
 )
 
 const (
@@ -51,6 +55,9 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
+	cert        = flag.String("cert", "", "")
+	key         = flag.String("key", "", "")
+	cacert      = flag.String("cacert", "", "")
 
 	output = flag.String("o", "", "")
 
@@ -86,6 +93,10 @@ Options:
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
 
+  -cert                 The PEM encoded certificate to use for HTTPS requests.
+  -key                  The PEM encoded private key to use for HTTPS requests.
+  -cacert               The CA certificate(s) to use for HTTPS requests. This is a PEM encoded concatenation of all
+  			trusted certificates.
   -disable-compression  Disable compression.
   -disable-keepalive    Disable keep-alive, prevents re-use of TCP
                         connections between different HTTP requests.
@@ -104,7 +115,6 @@ func main() {
 	if flag.NArg() < 1 {
 		usageAndExit("")
 	}
-
 	runtime.GOMAXPROCS(*cpus)
 	num := *n
 	conc := *c
@@ -173,6 +183,8 @@ func main() {
 		req.SetBasicAuth(username, password)
 	}
 
+	tlsConfig := CreateTlsConfig()
+
 	(&boomer.Boomer{
 		Request:            req,
 		RequestBody:        *body,
@@ -184,6 +196,7 @@ func main() {
 		DisableKeepAlives:  *disableKeepAlives,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		Tls:                tlsConfig,
 	}).Run()
 }
 
@@ -204,4 +217,71 @@ func parseInputWithRegexp(input, regx string) ([]string, error) {
 		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
 	}
 	return matches, nil
+}
+
+func ParsePemCert(certFile, keyFile string) (cert tls.Certificate, err error) {
+	certPEMBlock, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return
+	}
+	var certDERBlock *pem.Block
+	for {
+		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
+		if certDERBlock == nil {
+			break
+		}
+		if certDERBlock.Type == "CERTIFICATE" {
+			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
+		}
+	}
+
+	keyData, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return
+	}
+
+	block, _ := pem.Decode(keyData)
+
+	ecdsaKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return
+	}
+
+	cert.PrivateKey = ecdsaKey
+
+	return
+}
+
+func CreateTlsConfig() (cfg *tls.Config) {
+	cfg = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	if *cert == "" && *key == "" && *cacert == "" {
+		return
+	}
+
+	if *cert != "" && *key != "" {
+		if c, err := ParsePemCert(*cert, *key); err == nil {
+			cfg.Certificates = []tls.Certificate{c}
+		}
+	}
+
+	if *cacert != "" {
+		certPool := x509.NewCertPool()
+		buf, err := ioutil.ReadFile(*cacert)
+		if err != nil {
+			fmt.Fprint(os.Stderr, "failed to load ca cert")
+			return
+		}
+
+		if !certPool.AppendCertsFromPEM(buf) {
+			fmt.Fprint(os.Stderr, "Failed to parse truststore")
+			return
+		}
+
+		cfg.RootCAs = certPool
+		cfg.ClientCAs = certPool
+	}
+
+	return
 }
