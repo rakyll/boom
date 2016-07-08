@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	gourl "net/url"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"runtime"
@@ -48,6 +49,7 @@ var (
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("d", "", "")
+	file        = flag.String("f", "", "")
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
@@ -88,6 +90,7 @@ Options:
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
+  -f  file to read for post
 
   -h2  Make HTTP/2 requests.
 
@@ -176,6 +179,15 @@ func main() {
 	req.Header = header
 	if username != "" || password != "" {
 		req.SetBasicAuth(username, password)
+	}
+
+	//Open file and read into body
+	if *file != "" {
+	  b, err := ioutil.ReadFile(*file)
+	  if err != nil {
+		usageAndExit(err.Error())
+	  }
+	  *body = string(b);
 	}
 
 	(&boomer.Boomer{
