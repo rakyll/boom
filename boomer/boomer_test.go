@@ -45,7 +45,7 @@ func TestN(t *testing.T) {
 	}
 }
 
-func TestQps(t *testing.T) {
+func TestQPS(t *testing.T) {
 	var wg sync.WaitGroup
 	var count int64
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func TestQps(t *testing.T) {
 		Request: req,
 		N:       20,
 		C:       2,
-		Qps:     1,
+		QPS:     1,
 	}
 	wg.Add(1)
 	time.AfterFunc(time.Second, func() {

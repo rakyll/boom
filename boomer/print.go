@@ -39,6 +39,7 @@ type report struct {
 	statusCodeDist map[int]int
 	lats           []float64
 	sizeTotal      int64
+	matchDist      map[string]int
 
 	output string
 }
@@ -50,6 +51,7 @@ func newReport(size int, results chan *result, output string, total time.Duratio
 		total:          total,
 		statusCodeDist: make(map[int]int),
 		errorDist:      make(map[string]int),
+		matchDist:      make(map[string]int),
 	}
 }
 
@@ -59,6 +61,9 @@ func (r *report) finalize() {
 		case res := <-r.results:
 			if res.err != nil {
 				r.errorDist[res.err.Error()]++
+			} else if res.matchErr != nil {
+				msg := res.matchErr.Error()
+				r.matchDist[msg]++
 			} else {
 				r.lats = append(r.lats, res.duration.Seconds())
 				r.avgTotal += res.duration.Seconds()
@@ -104,6 +109,8 @@ func (r *report) print() {
 
 	if len(r.errorDist) > 0 {
 		r.printErrors()
+	} else if len(r.matchDist) > 0 {
+		r.printMatches()
 	}
 }
 
@@ -178,5 +185,12 @@ func (r *report) printErrors() {
 	fmt.Printf("\nError distribution:\n")
 	for err, num := range r.errorDist {
 		fmt.Printf("  [%d]\t%s\n", num, err)
+	}
+}
+
+func (r *report) printMatches() {
+	fmt.Printf("\nMatch distribution:\n")
+	for match, num := range r.matchDist {
+		fmt.Printf("  [%v]\t%d errors\n", match, num)
 	}
 }
