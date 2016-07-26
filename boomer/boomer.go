@@ -74,8 +74,10 @@ type Boomer struct {
 	// output will be dumped as a csv stream.
 	Output string
 
+   // The expected content of the response body.
 	ResponseBody string
 
+   // Whether to test the content of the response body.
 	TestResponse bool
 
 	// ProxyAddr is the address of HTTP proxy server in the format on "host:port".
@@ -129,11 +131,6 @@ func strMatch(b1, b2 string) (bool, error) {
 	isMatch := b1 == b2
 	var err error
 	if !isMatch {
-		// TODO: This should be done verbose mode
-		// fmt.Printf("\nResponse Body is:\n")
-		// fmt.Printf("\n%v", b1)
-		// fmt.Printf("\nShould be:")
-		// fmt.Printf("\n%v", b2)
 		for i := range b1 {
 			if b1[i] != b2[i] {
 				msg := fmt.Sprintf("First non matching char at index: %v", i)
