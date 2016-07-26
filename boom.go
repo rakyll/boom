@@ -25,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"./boomer"
+	"github.com/estk/boom/boomer"
 )
 
 const (
