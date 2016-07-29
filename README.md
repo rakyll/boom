@@ -10,7 +10,7 @@ Boom is originally written by Tarek Ziade in Python and is available on [tarekzi
 
 Simple as it takes to type the following command:
 
-    go get github.com/rakyll/boom
+    go get -u github.com/rakyll/boom
 
 ## Usage
 
