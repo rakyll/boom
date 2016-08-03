@@ -148,6 +148,8 @@ func main() {
 		header.Set("Accept", *accept)
 	}
 
+	reqBody := []byte(*body)
+
 	// set basic auth if set
 	var username, password string
 	if *authHeader != "" {
@@ -187,7 +189,7 @@ func main() {
 
 	(&boomer.Boomer{
 		Request:            req,
-		RequestBody:        *body,
+		RequestBody:        reqBody,
 		N:                  num,
 		C:                  conc,
 		Qps:                q,
