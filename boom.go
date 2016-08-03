@@ -15,8 +15,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	gourl "net/url"
 	"os"
@@ -148,7 +150,14 @@ func main() {
 		header.Set("Accept", *accept)
 	}
 
-	reqBody := []byte(*body)
+	var reqBody []byte
+	if *body == "-" {
+		buf := &bytes.Buffer{}
+		io.Copy(buf, os.Stdin)
+		reqBody = buf.Bytes()
+	} else {
+		reqBody = []byte(*body)
+	}
 
 	// set basic auth if set
 	var username, password string
