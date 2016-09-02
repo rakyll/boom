@@ -27,6 +27,18 @@ import (
 	"github.com/rakyll/boom/boomer"
 )
 
+const notice = `
+************************** WARNING ********************************
+This project has moved to https://github.com/rakyll/hey
+
+Use the following command to install the new binary:
+$ go get github.com/rakyll/hey
+
+Program boom might be broken in the long future, please update your
+environment rather than depending on this deprecated binary. 
+*******************************************************************
+`
+
 const (
 	headerRegexp = `^([\w-]+):\s*(.+)`
 	authRegexp   = `^(.+):([^\s].+)`
@@ -101,13 +113,14 @@ Options:
 `
 
 func main() {
+	fmt.Println(notice) // show deprecation notice
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, fmt.Sprintf(usage, runtime.NumCPU()))
 	}
 
 	flag.Var(&headerslice, "H", "")
-
 	flag.Parse()
+
 	if flag.NArg() < 1 {
 		usageAndExit("")
 	}
