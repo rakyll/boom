@@ -15,8 +15,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	gourl "net/url"
 	"os"
@@ -161,6 +163,15 @@ func main() {
 		header.Set("Accept", *accept)
 	}
 
+	var reqBody []byte
+	if *body == "-" {
+		buf := &bytes.Buffer{}
+		io.Copy(buf, os.Stdin)
+		reqBody = buf.Bytes()
+	} else {
+		reqBody = []byte(*body)
+	}
+
 	// set basic auth if set
 	var username, password string
 	if *authHeader != "" {
@@ -200,7 +211,7 @@ func main() {
 
 	(&boomer.Boomer{
 		Request:            req,
-		RequestBody:        *body,
+		RequestBody:        reqBody,
 		N:                  num,
 		C:                  conc,
 		Qps:                q,
