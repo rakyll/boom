@@ -60,7 +60,7 @@ var (
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("d", "", "")
-	accept      = flag.String("A", "", "")
+	accept      = flag.String("A", "text/html,application/json,application/xhtml+xml,application/xml,text/plain", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
 	hostHeader  = flag.String("host", "", "")
@@ -144,6 +144,12 @@ func main() {
 	// set content-type
 	header := make(http.Header)
 	header.Set("Content-Type", *contentType)
+
+	// set Accept header in prior of the additional headers processing
+	// so that leave a chance to override the default value
+	// if people explicitly define 'Accept' in Custom HTTP headers
+	header.Set("Accept", *accept)
+
 	// set any other additional headers
 	if *headers != "" {
 		usageAndExit("flag '-h' is deprecated, please use '-H' instead.")
@@ -155,10 +161,6 @@ func main() {
 			usageAndExit(err.Error())
 		}
 		header.Set(match[1], match[2])
-	}
-
-	if *accept != "" {
-		header.Set("Accept", *accept)
 	}
 
 	// set basic auth if set
