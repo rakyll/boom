@@ -17,6 +17,8 @@ package boomer
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -27,6 +29,8 @@ import (
 	"sync"
 	"time"
 
+	pb "gopkg.in/cheggaaa/pb.v1"
+
 	"golang.org/x/net/http2"
 )
 
@@ -35,8 +39,10 @@ type result struct {
 	statusCode    int
 	duration      time.Duration
 	contentLength int64
+	matchErr      error
 }
 
+// Boomer Describes a load test
 type Boomer struct {
 	// Request is the request to be made.
 	Request *http.Request
@@ -55,8 +61,8 @@ type Boomer struct {
 	// Timeout in seconds.
 	Timeout int
 
-	// Qps is the rate limit.
-	Qps int
+	// QPS is the rate limit.
+	QPS int
 
 	// DisableCompression is an option to disable compression in response
 	DisableCompression bool
@@ -68,17 +74,26 @@ type Boomer struct {
 	// output will be dumped as a csv stream.
 	Output string
 
+	// The expected content of the response body.
+	ResponseBody string
+
+	// Whether to test the content of the response body.
+	TestResponse bool
+
 	// ProxyAddr is the address of HTTP proxy server in the format on "host:port".
 	// Optional.
 	ProxyAddr *url.URL
 
 	results chan *result
+
+	responseEvent chan bool
 }
 
 // Run makes all the requests, prints the summary. It blocks until
 // all work is done.
 func (b *Boomer) Run() {
 	b.results = make(chan *result, b.N)
+	b.responseEvent = make(chan bool, b.N)
 
 	start := time.Now()
 	c := make(chan os.Signal, 1)
@@ -91,20 +106,62 @@ func (b *Boomer) Run() {
 		os.Exit(1)
 	}()
 
+	barDone := make(chan bool, 1)
+	go func() {
+		bar := pb.StartNew(b.N)
+		defer func() {
+			bar.Finish()
+			barDone <- true
+		}()
+		for done := range b.responseEvent {
+			if done {
+				break
+			} else {
+				bar.Increment()
+			}
+		}
+	}()
 	b.runWorkers()
-	newReport(b.N, b.results, b.Output, time.Now().Sub(start)).finalize()
+	nr := newReport(b.N, b.results, b.Output, time.Now().Sub(start))
+	<-barDone
+	nr.finalize()
 	close(b.results)
+}
+func strMatch(b1, b2 string) (bool, error) {
+	isMatch := b1 == b2
+	var err error
+	if !isMatch {
+		for i := range b1 {
+			if i >= len(b2) || b1[i] != b2[i] {
+				msg := fmt.Sprintf("First non matching char at index: %v", i)
+				err = errors.New(msg)
+				break
+			}
+		}
+
+	}
+	return isMatch, err
 }
 
 func (b *Boomer) makeRequest(c *http.Client) {
-	s := time.Now()
-	var size int64
-	var code int
+	var (
+		s        = time.Now()
+		size     int64
+		code     int
+		matchErr error
+	)
 
 	resp, err := c.Do(cloneRequest(b.Request, b.RequestBody))
 	if err == nil {
 		size = resp.ContentLength
 		code = resp.StatusCode
+		bodyBuf, _ := ioutil.ReadAll(resp.Body) // overwrite error
+		bodyStr := string(bodyBuf)
+
+		if b.TestResponse {
+			_, matchErr = strMatch(bodyStr, b.ResponseBody)
+		}
+
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}
@@ -113,13 +170,15 @@ func (b *Boomer) makeRequest(c *http.Client) {
 		duration:      time.Now().Sub(s),
 		err:           err,
 		contentLength: size,
+		matchErr:      matchErr,
 	}
+	b.responseEvent <- false
 }
 
 func (b *Boomer) runWorker(n int) {
 	var throttle <-chan time.Time
-	if b.Qps > 0 {
-		throttle = time.Tick(time.Duration(1e6/(b.Qps)) * time.Microsecond)
+	if b.QPS > 0 {
+		throttle = time.Tick(time.Duration(1e6/(b.QPS)) * time.Microsecond)
 	}
 
 	tr := &http.Transport{
@@ -139,7 +198,7 @@ func (b *Boomer) runWorker(n int) {
 	}
 	client := &http.Client{Transport: tr}
 	for i := 0; i < n; i++ {
-		if b.Qps > 0 {
+		if b.QPS > 0 {
 			<-throttle
 		}
 		b.makeRequest(client)
@@ -158,6 +217,7 @@ func (b *Boomer) runWorkers() {
 		}()
 	}
 	wg.Wait()
+	b.responseEvent <- true
 }
 
 // cloneRequest returns a clone of the provided *http.Request.

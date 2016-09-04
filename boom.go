@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	gourl "net/url"
 	"os"
@@ -24,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rakyll/boom/boomer"
+	"github.com/estk/boom/boomer"
 )
 
 const notice = `
@@ -60,6 +61,8 @@ var (
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("d", "", "")
+	bodyFile    = flag.String("D", "", "")
+	respBody    = flag.String("M", "", "")
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 	authHeader  = flag.String("a", "", "")
@@ -98,9 +101,11 @@ Options:
   -t  Timeout in ms.
   -A  HTTP Accept header.
   -d  HTTP request body.
+  -D  File containing the HTTP request body.
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
+  -M  A file that should should match char-for-char the response body.
 
   -h2  Make HTTP/2 requests.
 
@@ -192,6 +197,29 @@ func main() {
 	if username != "" || password != "" {
 		req.SetBasicAuth(username, password)
 	}
+	requestBody := ""
+	if *body != "" && *bodyFile != "" {
+		usageAndExit("Cannot set both body and bodyFile. Pick one.")
+	} else if *body != "" {
+		requestBody = *body
+	} else if *bodyFile != "" {
+		rb, err := ioutil.ReadFile(*bodyFile)
+		if err != nil {
+			usageAndExit("There was an error reading the body file")
+		}
+		requestBody = string(rb)
+	}
+
+	responseBody := ""
+	testResp := false
+	if *respBody != "" {
+		testResp = true
+		if rb, err := ioutil.ReadFile(*respBody); err != nil {
+			usageAndExit("There was an error reading the response body file.")
+		} else {
+			responseBody = string(rb)
+		}
+	}
 
 	// set host header if set
 	if *hostHeader != "" {
@@ -200,16 +228,18 @@ func main() {
 
 	(&boomer.Boomer{
 		Request:            req,
-		RequestBody:        *body,
+		RequestBody:        requestBody,
 		N:                  num,
 		C:                  conc,
-		Qps:                q,
+		QPS:                q,
 		Timeout:            *t,
 		DisableCompression: *disableCompression,
 		DisableKeepAlives:  *disableKeepAlives,
 		H2:                 *h2,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		ResponseBody:       responseBody,
+		TestResponse:       testResp,
 	}).Run()
 }
 

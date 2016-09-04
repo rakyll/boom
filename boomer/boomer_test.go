@@ -16,6 +16,7 @@ package boomer
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -45,7 +46,7 @@ func TestN(t *testing.T) {
 	}
 }
 
-func TestQps(t *testing.T) {
+func TestQPS(t *testing.T) {
 	var wg sync.WaitGroup
 	var count int64
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +60,7 @@ func TestQps(t *testing.T) {
 		Request: req,
 		N:       20,
 		C:       2,
-		Qps:     1,
+		QPS:     1,
 	}
 	wg.Add(1)
 	time.AfterFunc(time.Second, func() {
@@ -132,4 +133,53 @@ func TestBody(t *testing.T) {
 	if count != 10 {
 		t.Errorf("Expected to boom 10 times, found %v", count)
 	}
+}
+
+func TestInvalidBody(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Body does not match")
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL, bytes.NewBuffer([]byte("Body")))
+	boomer := &Boomer{
+		Request:      req,
+		RequestBody:  "Body",
+		ResponseBody: "Body",
+		TestResponse: true,
+		N:            1,
+		C:            1,
+	}
+	go func() {
+		r := <-boomer.results
+		if r.matchErr == nil {
+			t.Error("The result should not have matched.")
+		}
+	}()
+	boomer.Run()
+}
+func TestValidBody(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Body")
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL, bytes.NewBuffer([]byte("Body")))
+	boomer := &Boomer{
+		Request:      req,
+		RequestBody:  "Body",
+		ResponseBody: "Body",
+		TestResponse: true,
+		N:            1,
+		C:            1,
+	}
+	go func() {
+		r := <-boomer.results
+		if r.matchErr != nil {
+			t.Error("The result should have matched.")
+		}
+	}()
+	boomer.Run()
 }
